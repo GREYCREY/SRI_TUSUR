@@ -1,0 +1,112 @@
+{
+    "short_comm": {
+        "complex_mode": {
+            "type_ku": 8,
+            "cod_ku": 998
+        },
+        "autonomous_mode": {
+            "type_ku": 8,
+            "cod_ku": 999
+        },
+        "vkl_atm_biab": {
+            "type_ku": 9,
+            "cod_ku": 1000
+        },
+        "otkl_atm_biab_kpa": {
+            "type_ku": 9,
+            "cod_ku": 1001
+        },
+        "test": {
+            "type_ku": 7,
+            "cod_ku": 317
+        },
+        "initial": {
+            "type_ku": 7,
+            "cod_ku": 24
+        },
+        "charge_s_nagr": {
+            "type_ku": 7,
+            "cod_ku": 318
+        },
+        "vkl_biab": {
+            "type_ku": 7,
+            "cod_ku": 286
+        },
+        "vkl_30v": {
+            "type_ku": 7,
+            "cod_ku": 291
+        },
+        "vkl_izd": {
+            "type_ku": 7,
+            "cod_ku": 289
+        },
+        "otkl_izd": {
+            "type_ku": 7,
+            "cod_ku": 288
+        },
+        "otkl_30v": {
+            "type_ku": 7,
+            "cod_ku": 290
+        },
+        "otkl_biab": {
+            "type_ku": 7,
+            "cod_ku": 287
+        },
+        "decrease_ogr_uab": {
+            "type_ku": 7,
+            "cod_ku": 299
+        },
+        "increase_ogr_uab": {
+            "type_ku": 7,
+            "cod_ku": 300
+        },
+        "decrease_ogr_uab_precise": {
+            "type_ku": 7,
+            "cod_ku": 301
+        },
+        "increase_ogr_uab_precise": {
+            "type_ku": 7,
+            "cod_ku": 302
+        },
+        "decrease_uab": {
+            "type_ku": 7,
+            "cod_ku": 303
+        },
+        "increase_uab": {
+            "type_ku": 7,
+            "cod_ku": 304
+        },
+        "decrease_uab_precise": {
+            "type_ku": 7,
+            "cod_ku": 305
+        },
+        "increase_uab_precise": {
+            "type_ku": 7,
+            "cod_ku": 306
+        },
+        "set_skachok_1v": {
+            "type_ku": 7,
+            "cod_ku": 30901
+        },
+        "set_skachok_2v": {
+            "type_ku": 7,
+            "cod_ku": 30902
+        },
+        "set_skachok_5v": {
+            "type_ku": 7,
+            "cod_ku": 30903
+        },
+        "nabros": {
+            "type_ku": 7,
+            "cod_ku": 310
+        },
+        "sbros": {
+            "type_ku": 7,
+            "cod_ku": 311
+        },
+        "select_iadd_1": {
+            "type_ku": 7,
+            "cod_ku": 100
+        }
+    }
+}
