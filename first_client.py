@@ -1,10 +1,19 @@
 import asyncio
+import json
 
 async def client1(host, port):
+    # Load commands from JSON file
+    with open('D:\programming\SRI_TUSUR\command_biab100.json', 'r') as file:
+        commands = json.load(file)
+    
+    control_commands = [commands['short_comm']['complex_mode']['cod_ku'],
+                        commands['short_comm']['vkl_atm_biab']['cod_ku'],
+                        commands['short_comm']['test']['cod_ku']]
+    
     reader, writer = await asyncio.open_connection(host, port)
     
-    while True:
-        message = "Hello from Client 1"
+    for command in control_commands:
+        message = f"Command: {command}"
         print(f"Client 1 sending: {message}")
         writer.write(message.encode())
         
@@ -15,10 +24,7 @@ async def client1(host, port):
             print("Connection closed by server.")
             break
         
-        await asyncio.sleep(2)  # Pause for a bit before sending next message
-        
-        if input("Press  'q' to quit: ") == 'q':
-            break
+        await asyncio.sleep(2) 
     
     writer.close()
     await writer.wait_closed()

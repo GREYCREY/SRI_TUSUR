@@ -22,16 +22,19 @@ async def handle_connection(reader, writer):
         print(f"Server received: {command}")
         
         ack_message = create_ack_message(command)
-        binary_data = b'\x01\x02\x03\x04'  # Example binary data
+        
+        # Create binary acknowledgment message
+        binary_ack_message = ack_message.encode() + b'\x00\x01\x02\x03'  # Example binary data appended
         
         try:
-            writer.write(ack_message.encode())
-            writer.write(binary_data)
+            writer.write(binary_ack_message)
+            await writer.drain()  # Ensure all data is sent
         except ConnectionError:
             print(f"Client suddenly closed, cannot send")
             break
     
     writer.close()
+    await writer.wait_closed()
     print("Disconnected by", addr)
 
 async def main(host, port):
