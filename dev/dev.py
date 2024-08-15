@@ -82,6 +82,7 @@ try:
     combined.to_csv('combined.csv', encoding='cp1251', index=False, sep=';')
 except PermissionError:
     print(f"Ошибка: Не удается записать файл 'combined.csv'. Возможно, он уже открыт другим приложением.")
+    
 except Exception as e:
     print(f"Произошла ошибка при записи файла 'combined.csv': {e}")
 
