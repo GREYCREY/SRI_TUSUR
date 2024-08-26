@@ -1,34 +1,38 @@
 import asyncio
 import json
+from time import time
+from struct import pack, calcsize
+
+
+def komm (list_komm : dict, n_pak = 2, n_param = 0):
+    '''create command'''
+    k = list_komm['type_ku']
+    m = list_komm['cod_ku']
+    return pack('<HHIH', n_pak, k, m, n_param)
+def mess (data, t_time):
+    '''create message'''
+    SIZE_Q = calcsize('Q')
+    return pack('<H', SIZE_Q+len(data)) + pack('<Q', t_time) + data
 
 async def client1(host, port):
     # Load commands from JSON file
-    with open('D:\programming\SRI_TUSUR\command_biab100.json', 'r') as file:
+    with open('command_biab100.json', 'r') as file:
         commands = json.load(file)
+
+# Process each command and create messages
+    for command_name, command_details in commands['short_comm'].items():
+    # Encode command
+        encoded_command = komm(command_details)
     
-    control_commands = [commands['short_comm']['complex_mode']['cod_ku'],
-                        commands['short_comm']['vkl_atm_biab']['cod_ku'],
-                        commands['short_comm']['test']['cod_ku']]
+    # Get current time
+        current_time = int(time())
     
-    reader, writer = await asyncio.open_connection(host, port)
-    
-    for command in control_commands:
-        message = f"Command: {command}"
-        print(f"Client 1 sending: {message}")
-        writer.write(message.encode())
-        
-        try:
-            data = await reader.read(1024)
-            print(f"Client 1 received: {data.decode()}")
-        except ConnectionError:
-            print("Connection closed by server.")
-            break
-        
-        await asyncio.sleep(2) 
-    
-    writer.close()
-    await writer.wait_closed()
+    # Create message
+        message = mess(encoded_command, current_time)   
+    # Here you can send the message or do further processing
+        print(f"Command: {command_name}, Encoded Message: {message}")
 
 if __name__ == "__main__":
     HOST, PORT = "127.0.0.1", 50007
     asyncio.run(client1(HOST, PORT))
+    
