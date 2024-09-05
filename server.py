@@ -1,4 +1,5 @@
 import asyncio
+from struct import unpack
 
 # Function to create an acknowledgment message
 def create_ack_message(command):
@@ -17,21 +18,12 @@ async def handle_connection(reader, writer):
         
         if not data:
             break
-        
-        command = data.decode()
+
+        format_string = '<H H I H'
+        command = unpack(format_string,data)
         print(f"Server received: {command}")
         
-        ack_message = create_ack_message(command)
         
-        # Create binary acknowledgment message
-        binary_ack_message = ack_message.encode() + b'\x00\x01\x02\x03'  # Example binary data appended
-        
-        try:
-            writer.write(binary_ack_message)
-            await writer.drain()  # Ensure all data is sent
-        except ConnectionError:
-            print(f"Client suddenly closed, cannot send")
-            break
     
     writer.close()
     await writer.wait_closed()
