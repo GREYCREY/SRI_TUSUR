@@ -1,7 +1,7 @@
 import asyncio
 import json
 from time import time
-from struct import pack, calcsize
+from struct import pack, unpack, calcsize
 
 def komm(list_komm: dict, n_pak=2, n_param=0):
     '''Create command'''
@@ -44,7 +44,9 @@ async def client1(host, port):
 
         print(f"Sent {command_name}, waiting for response")
         data = await reader.read(100)
-        print(f"Received: {data.decode()}")
+        command_format = '<HQHBH'
+        decoded_mesenge = unpack(command_format, data)
+        print(f"Received: {decoded_mesenge}")
 
         print(f"Closing connection for {command_name}")
         writer.close()

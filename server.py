@@ -1,9 +1,5 @@
 import asyncio
-from struct import unpack
-
-# Function to create an acknowledgment message
-def create_ack_message(command):
-    return f"Command received: {command}"
+from struct import unpack, pack, calcsize
 
 async def handle_connection(reader, writer):
     addr = writer.get_extra_info("peername")
@@ -19,12 +15,22 @@ async def handle_connection(reader, writer):
         if not data:
             break
 
-        format_string = '<H H I H'
-        command = unpack(format_string,data)
-        print(f"Server received: {command}")
+        # Распаковываем заголовок и временную метку
+        header_format = '<H Q'
+        header_size = calcsize(header_format)
+        header = unpack(header_format, data[:header_size])
+        message_length, timestamp = header
+        print(f"Message length: {message_length}, Timestamp: {timestamp}")
+
+        # Распаковываем команду
+        command_format = '<H H I H'
+        n_pak, type_ku, cod_ku, param = unpack(command_format, data[header_size:header_size+calcsize(command_format)])
         
-        
-    
+        print(f"Server received: {cod_ku}")
+        receipt = pack('<HQHBH', message_length , timestamp, 2 , 1 , cod_ku)
+        writer.write(receipt)
+        await writer.drain()
+
     writer.close()
     await writer.wait_closed()
     print("Disconnected by", addr)
