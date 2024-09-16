@@ -1,7 +1,7 @@
 import asyncio
 import json
-from time import time
-from struct import pack, unpack, calcsize
+from struct import pack, unpack
+from time import time, sleep
 
 def komm(list_komm: dict, n_pak=2, n_param=0):
     '''Create command'''
@@ -11,46 +11,67 @@ def komm(list_komm: dict, n_pak=2, n_param=0):
 
 def mess(data, t_time):
     '''Create message'''
-    SIZE_Q = calcsize('Q')
-    t_time_int = int(t_time * 1000)  # Преобразование временной метки в миллисекунды
-    return pack('<H', SIZE_Q + len(data)) + pack('<Q', t_time_int) + data
+    return pack('<H', len(data)) + pack('<Q', int(t_time * 1000)) + data
 
+# Функция отправки сообщений (writer)
+async def send_message(writer, command_name, command_details):
+    # Закодировать команду
+    encoded_command = komm(command_details)
+    
+    # Получить текущее время
+    current_time = time()
+    
+    # Создать сообщение
+    message = mess(encoded_command, current_time)
+    
+    # Отправить сообщение серверу
+    print(f"Sending {command_name}: {message}")
+    writer.write(message)
+    await writer.drain()
+    print(f"Sent {command_name}")
+
+# Функция получения сообщений (reader)
+async def receive_message(reader):
+    # Ожидание данных от сервера
+    data = await reader.read(16384)  # Чтение данных от сервера
+    print(f"Received {len(data)} bytes")
+
+    # Пример декодирования сообщения
+    command_format = '<HQHBH'
+    decoded_message = unpack(command_format, data[:16])  # Декодирование первых 16 байтов
+    print(f"Decoded message: {decoded_message}")
+    
+    return data
+
+# Основная функция
 async def client1(host, port):
-    # Load commands from JSON file
+    # Загрузка команд из JSON-файла
     with open('command_biab100.json', 'r') as file:
         commands = json.load(file)
-
+    
     command_names = ["complex_mode", "vkl_atm_biab", "vkl_biab"]
 
-    # Process each command and create messages
+    # Установление соединения с сервером
+    reader, writer = await asyncio.open_connection(host, port)
+
+    # Процесс каждой команды
     for command_name in command_names:
         command_details = commands['short_comm'][command_name]
 
-        # Encode command
-        encoded_command = komm(command_details)
+        # Отправка сообщения
+        await send_message(writer, command_name, command_details)
 
-        # Get current time (using float for more precision)
-        current_time = time()
+        # Ожидание ответа от сервера
+        data = await receive_message(reader)
+        time.sleep(5)
+        
 
-        # Create message
-        message = mess(encoded_command, current_time)
-
-        # Establish connection and send message
-        reader, writer = await asyncio.open_connection(host, port)
-
-        print(f"Sending {command_name}: {message}")
-        writer.write(message)
-        await writer.drain()
-
-        print(f"Sent {command_name}, waiting for response")
-        data = await reader.read(100)
-        command_format = '<HQHBH'
-        decoded_mesenge = unpack(command_format, data)
-        print(f"Received: {decoded_mesenge}")
-
-        print(f"Closing connection for {command_name}")
-        writer.close()
-        await writer.wait_closed()
+    # Обработка ответа (можно добавить вашу логику обработки здесь)
+    input('Press Enter to close connection')
+    # Закрытие соединения
+    print("Closing connection")
+    writer.close()
+    await writer.wait_closed()
 
 if __name__ == "__main__":
     HOST, PORT = "127.0.0.1", 50007
