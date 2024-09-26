@@ -1,7 +1,8 @@
-import asyncio
+import socket
 import json
 from struct import pack, unpack
-from time import time, sleep
+from time import time
+import keyboard
 
 def komm(list_komm: dict, n_pak=2, n_param=0):
     '''Create command'''
@@ -13,8 +14,7 @@ def mess(data, t_time):
     '''Create message'''
     return pack('<H', len(data)) + pack('<Q', int(t_time * 1000)) + data
 
-# Функция отправки сообщений (writer)
-async def send_message(writer, command_name, command_details):
+def send_message(sock, command_name, command_details):
     # Закодировать команду
     encoded_command = komm(command_details)
     
@@ -26,53 +26,53 @@ async def send_message(writer, command_name, command_details):
     
     # Отправить сообщение серверу
     print(f"Sending {command_name}: {message}")
-    writer.write(message)
-    await writer.drain()
+    sock.sendall(message)
     print(f"Sent {command_name}")
 
-# Функция получения сообщений (reader)
-async def receive_message(reader):
+def receive_message(sock):
     # Ожидание данных от сервера
-    data = await reader.read(16384)  # Чтение данных от сервера
+    data = sock.recv(16384)
     print(f"Received {len(data)} bytes")
 
     # Пример декодирования сообщения
     command_format = '<HQHBH'
-    decoded_message = unpack(command_format, data[:16])  # Декодирование первых 16 байтов
-    print(f"Decoded message: {decoded_message}")
-    
+    #decoded_message = unpack(command_format, data[:16])
+    #print(f"Decoded message: {decoded_message}")
+
     return data
 
-# Основная функция
-async def client1(host, port):
+def client1(host, port):
     # Загрузка команд из JSON-файла
     with open('command_biab100.json', 'r') as file:
         commands = json.load(file)
     
     command_names = ["complex_mode", "vkl_atm_biab", "vkl_biab"]
+    command_for_cycle = ["vkl_30v", "increase_ogr_uab", "otkl_30v", "nabros", "decrease_ogr_uab_precise", "sbros"]
 
     # Установление соединения с сервером
-    reader, writer = await asyncio.open_connection(host, port)
+    with socket.create_connection((host, port)) as sock:
+        # Процесс каждой команды
+        for command_name in command_names:
+            command_details = commands['short_comm'][command_name]
 
-    # Процесс каждой команды
-    for command_name in command_names:
-        command_details = commands['short_comm'][command_name]
+            # Отправка сообщения
+            send_message(sock, command_name, command_details)
 
-        # Отправка сообщения
-        await send_message(writer, command_name, command_details)
+            # Ожидание ответа от сервера
+            data = receive_message(sock)
 
-        # Ожидание ответа от сервера
-        data = await receive_message(reader)
-        time.sleep(5)
-        
+        while True:
+            for command in command_for_cycle:
+                command_details = commands['short_comm'][command]
+                send_message(sock, command, command_details)
+            
+            if keyboard.is_pressed('q'):
+                print("Завершение цикла")
+                break
 
-    # Обработка ответа (можно добавить вашу логику обработки здесь)
-    input('Press Enter to close connection')
-    # Закрытие соединения
-    print("Closing connection")
-    writer.close()
-    await writer.wait_closed()
+        input('Press Enter to close connection')
+        print("Closing connection")
 
 if __name__ == "__main__":
     HOST, PORT = "127.0.0.1", 50007
-    asyncio.run(client1(HOST, PORT))
+    client1(HOST, PORT)

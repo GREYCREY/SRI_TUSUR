@@ -1,17 +1,16 @@
-import asyncio
+import socket
 from struct import unpack, pack, calcsize
 
-async def handle_connection(reader, writer):
-    addr = writer.get_extra_info("peername")
+def handle_connection(conn, addr):
     print("Connected by", addr)
     
     while True:
         try:
-            data = await reader.read(1024)
+            data = conn.recv(1024)
         except ConnectionError:
             print(f"Client suddenly closed while receiving from {addr}")
             break
-        
+
         if not data:
             break
 
@@ -27,20 +26,22 @@ async def handle_connection(reader, writer):
         n_pak, type_ku, cod_ku, param = unpack(command_format, data[header_size:header_size+calcsize(command_format)])
         
         print(f"Server received: {cod_ku}")
-        receipt = pack('<HQHBH', message_length , timestamp, 2 , 1 , cod_ku)
-        writer.write(receipt)
-        await writer.drain()
+        receipt = pack('<HQHBH', message_length, timestamp, 2, 1, cod_ku)
+        conn.sendall(receipt)
 
-    writer.close()
-    await writer.wait_closed()
+    conn.close()
     print("Disconnected by", addr)
 
-async def main(host, port):
-    server = await asyncio.start_server(handle_connection, host, port)
-    async with server:
-        await server.serve_forever()
+def main(host, port):
+    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as server_socket:
+        server_socket.bind((host, port))
+        server_socket.listen()
 
-HOST, PORT = "", 50007
+        print(f"Server listening on {host}:{port}")
+        while True:
+            conn, addr = server_socket.accept()
+            handle_connection(conn, addr)
 
 if __name__ == "__main__":
-    asyncio.run(main(HOST, PORT))
+    HOST, PORT = "", 50007
+    main(HOST, PORT)
