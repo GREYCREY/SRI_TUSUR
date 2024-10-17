@@ -1,5 +1,6 @@
 import socket
 from struct import unpack, pack, calcsize
+import threading
 
 def handle_connection(conn, addr):
     print("Connected by", addr)
@@ -26,6 +27,8 @@ def handle_connection(conn, addr):
         n_pak, type_ku, cod_ku, param = unpack(command_format, data[header_size:header_size+calcsize(command_format)])
         
         print(f"Server received: {cod_ku}")
+        
+        # Формируем и отправляем квитанцию о получении
         receipt = pack('<HQHBH', message_length, timestamp, 2, 1, cod_ku)
         conn.sendall(receipt)
 
@@ -36,12 +39,17 @@ def main(host, port):
     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as server_socket:
         server_socket.bind((host, port))
         server_socket.listen()
-
         print(f"Server listening on {host}:{port}")
+
         while True:
+            # Ожидаем нового клиента
             conn, addr = server_socket.accept()
-            handle_connection(conn, addr)
+
+            # Создаем новый поток для обработки соединения
+            thread = threading.Thread(target=handle_connection, args=(conn, addr))
+            thread.start()
+            print(f"Started thread {thread.name} for {addr}")
 
 if __name__ == "__main__":
-    HOST, PORT = "", 50007
+    HOST, PORT = "127.0.0.1", 10001
     main(HOST, PORT)

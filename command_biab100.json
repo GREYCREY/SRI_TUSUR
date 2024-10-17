@@ -107,6 +107,14 @@
         "select_iadd_1": {
             "type_ku": 7,
             "cod_ku": 100
+        },
+        "set_ustavka_Uab":{
+            "type_ku": 7,
+            "cod_ku" : 500,
+            "param_range":{
+                "min": 1500,
+                "max": 10000
+            }
         }
     }
 }
