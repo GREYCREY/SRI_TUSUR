@@ -1,6 +1,6 @@
 import socket
 import json
-from struct import pack
+from struct import pack, unpack
 from time import time, sleep
 import threading
 import keyboard
@@ -22,26 +22,49 @@ def mess(data, t_time):
 def send_commands_thread(sock, commands):
     global stop_thread  # Используем глобальную переменную для контроля
     ku_complex = pk.Short_Comanda_KU(1, 998)
-    ku_vkl_30v = pk.Short_Comanda_KU(1, 291) 
-    ku_increase_ogr_uab = pk.Short_Comanda_KU(1, 300)
-    ku_otkl_30v = pk.Short_Comanda_KU(1, 290)
-    ku_nabros = pk.Short_Comanda_KU(1, 310)
-    ku_decrease_ogr_uab_precise = pk.Short_Comanda_KU(1, 305)
-    ku_sbros = pk.Short_Comanda_KU(1, 311)
-    command_for_cycle = [ku_vkl_30v, ku_increase_ogr_uab, ku_otkl_30v, ku_nabros, ku_decrease_ogr_uab_precise, ku_sbros]
+    command_for_cycle = ["vkl_30v", "increase_ogr_uab", "otkl_30v", "nabros", "decrease_ogr_uab_precise", "sbros"]
 
     # Отправка начальных команд
     sock.send(ku_complex.message())
 
     # Бесконечный цикл отправки команд
     while not stop_thread:
-        for command in command_for_cycle:
+        for command_name in command_for_cycle:
             if stop_thread:
                 print("Stopping the command cycle")
                 break
+            command_details = commands['short_comm'][command_name]
+            type_ku = command_details['type_ku']
+            cod_ku = command_details['cod_ku']
+            command = pk.Short_Comanda_KU(type_ku, cod_ku)
             sock.send(command.message())
             sleep(3)
-#ss
+
+def receive_messages(sock):
+    '''Получение и расшифровка сообщений с сервера'''
+    global stop_thread
+    first_message = True  # Локальная переменная для проверки первого сообщения
+    while not stop_thread:
+        try:
+            
+            # Получаем само сообщение указанного размера
+            message_data = sock.recv(16384)
+            if not message_data:
+                break
+            
+            if first_message:
+                # Выводим первое сообщение полностью и без расшифровки
+                print("First raw message:", message_data)
+                first_message = False
+            else:
+                # Расшифровываем последующие сообщения по формату 'HQHBH'
+                data = unpack('<HQHBH', message_data)
+                print("Received decoded message:", data)
+        
+        except Exception as e:
+            print("Error receiving message:", e)
+            break
+
 def client_thread(host, port, commands):
     global stop_thread
     try:
@@ -49,10 +72,13 @@ def client_thread(host, port, commands):
         with socket.create_connection((host, port)) as sock:
             # Запуск потоков для приема сообщений и отправки команд
             send_thread = threading.Thread(target=send_commands_thread, args=(sock, commands))
+            receive_thread = threading.Thread(target=receive_messages, args=(sock,))
             send_thread.start()
+            receive_thread.start()
 
-            # Ожидание завершения отправки сообщений
+            # Ожидание завершения потоков
             send_thread.join()
+            receive_thread.join()
     except ConnectionError:
         print("Server connection failed!")
     finally:
@@ -64,7 +90,6 @@ def listen_for_keypress():
     while not stop_thread:
         if keyboard.is_pressed('q'):
             print("Key 'q' pressed, stopping the command cycle")
-            print('')
             stop_thread = True
             break
 
