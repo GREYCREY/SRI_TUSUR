@@ -43,27 +43,41 @@ def send_commands_thread(sock, commands):
 def receive_messages(sock):
     '''Получение и расшифровка сообщений с сервера'''
     global stop_thread
-    first_message = True  # Локальная переменная для проверки первого сообщения
+    buffer = b''  # Буфер для накопления данных
+
     while not stop_thread:
         try:
-            
-            # Получаем само сообщение указанного размера
-            message_data = sock.recv(16384)
-            if not message_data:
-                break
-            
-            if first_message:
-                # Выводим первое сообщение полностью и без расшифровки
-                print("First raw message:", message_data)
-                first_message = False
-            else:
-                # Расшифровываем последующие сообщения по формату 'HQHBH'
-                data = unpack('<HQHBH', message_data)
-                print("Received decoded message:", data)
-        
+            # Получаем данные из сокета
+            chunk = sock.recv(16384)
+            if not chunk:
+                break  # Если данных нет, завершаем цикл
+            buffer += chunk  # Добавляем полученные данные в буфер
+
+            # Если в буфере есть хотя бы два байта для длины сообщения
+            while len(buffer) >= 2:
+                # Читаем длину сообщения (первые 2 байта)
+                message_length = unpack('<H', buffer[:2])[0]
+
+                # Проверяем, хватает ли данных для полного сообщения
+                if len(buffer) < 2 + message_length:
+                    break  # Если данных не хватает, выходим из цикла для получения оставшихся данных
+                
+                # Извлекаем полное сообщение
+                message_data = buffer[2:2 + message_length]
+                buffer = buffer[2 + message_length:]  # Удаляем из буфера обработанные данные
+
+                # Расшифровка сообщения по формату 'HQHBH' (пример, нужно подстроить под ваш формат)
+                try:
+                    data = unpack('<HQHBH', message_data)
+                    print("Received decoded message:", data)
+                except Exception as e:
+                    print("Error decoding message:", e)
+                    continue
+
         except Exception as e:
             print("Error receiving message:", e)
             break
+
 
 def client_thread(host, port, commands):
     global stop_thread
