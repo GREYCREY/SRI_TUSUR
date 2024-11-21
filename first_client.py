@@ -68,7 +68,7 @@ def receive_messages(sock):
 
                 # Расшифровка сообщения по формату 'HQHBH' (пример, нужно подстроить под ваш формат)
                 try:
-                    data = unpack('<HQHBH', message_data)
+                    data = unpack('<hhhhh', message_data)
                     print("Received decoded message:", data)
                 except Exception as e:
                     print("Error decoding message:", e)
