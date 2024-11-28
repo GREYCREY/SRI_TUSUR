@@ -1,9 +1,9 @@
 import socket
 import json
-from struct import pack, unpack
-from time import time, sleep
+from struct import pack, unpack_from, error
+from time import sleep
 import threading
-import keyboard
+from keyboard import is_pressed
 import packet as pk
 
 # Глобальная переменная для остановки цикла
@@ -56,27 +56,94 @@ def receive_messages(sock):
             # Если в буфере есть хотя бы два байта для длины сообщения
             while len(buffer) >= 2:
                 # Читаем длину сообщения (первые 2 байта)
-                message_length = unpack('<H', buffer[:2])[0]
+                message_length = unpack_from('<H', buffer)[0]
 
                 # Проверяем, хватает ли данных для полного сообщения
                 if len(buffer) < 2 + message_length:
                     break  # Если данных не хватает, выходим из цикла для получения оставшихся данных
                 
                 # Извлекаем полное сообщение
-                message_data = buffer[2:2 + message_length]
+                message_data = buffer[:2 + message_length]
                 buffer = buffer[2 + message_length:]  # Удаляем из буфера обработанные данные
 
-                # Расшифровка сообщения по формату 'HQHBH' (пример, нужно подстроить под ваш формат)
+                # Декодируем сообщение с помощью функции decode_packet
                 try:
-                    data = unpack('<hhhhh', message_data)
-                    print("Received decoded message:", data)
+                    decode_packet(message_data)
                 except Exception as e:
-                    print("Error decoding message:", e)
-                    continue
+                    print("Ошибка при расшифровке сообщения:", e)
 
         except Exception as e:
-            print("Error receiving message:", e)
+            print("Ошибка при получении данных:", e)
             break
+
+
+def decode_packet(data):
+    '''Расшифровка сообщения'''
+    while len(data) > 2:  # Минимум 2 байта для длины сообщения
+        # Чтение длины сообщения
+        message_length, = unpack_from('<H', data)
+        print(f"Длина сообщения: {message_length}")
+
+        if len(data) < message_length + 2:  # Проверяем, хватает ли данных для сообщения
+            print("Ошибка: Сообщение выходит за пределы данных!")
+            break
+
+        # Извлекаем текущее сообщение
+        current_message = data[:message_length + 2]
+        data = data[message_length + 2:]  # Убираем обработанную часть
+
+        try:
+            # Чтение времени
+            timestamp, = unpack_from('<Q', current_message, 2)
+            print(f"Время: {timestamp}")
+
+            # Чтение пакета
+            packet, = unpack_from('<H', current_message, 10)
+            print(f"Пакет: {packet}")
+
+            # Чтение количества параметров
+            kol_param, = unpack_from('<H', current_message, 12)
+            print(f"Количество параметров: {kol_param}")
+
+            # Обработка параметров
+            param_data = current_message[14:]  # Срез данных для параметров
+            for _ in range(kol_param):
+                if len(param_data) < 5:  # Минимум 5 байт на параметр (тип, номер, длина)
+                    print("Ошибка: Данные параметров выходят за пределы сообщения!")
+                    break
+
+                # Чтение ТипАТМ, Номер параметра и Длины
+                type_atm, param_number, param_length = unpack_from('<HHB', param_data)
+                param_data = param_data[5:]  # Убираем прочитанные 5 байт
+                print(f"Тип АТМ: {type_atm}, Номер параметра: {param_number}, Длина параметра: {param_length}")
+
+                if len(param_data) < param_length:
+                    print("Ошибка: Недостаточно данных для значения параметра!")
+                    break
+
+                # Чтение значения параметра
+                if param_length == 8:  # Если длина 8 байт, интерпретируем как double
+                    param_value, = unpack_from('<d', param_data)
+                    print(f"Значение параметра: {param_value}")
+                    param_data = param_data[8:]
+                elif param_length == 4:  # Если длина 4 байта, интерпретируем как unsigned int
+                    param_value, = unpack_from('<I', param_data)
+                    print(f"Значение параметра: {param_value}")
+                    param_data = param_data[4:]
+                elif param_length == 1:  # Если длина 1 байт, интерпретируем как unsigned byte
+                    param_value, = unpack_from('<B', param_data)
+                    print(f"Значение параметра: {param_value}")
+                    param_data = param_data[1:]
+                else:  # Для других длин, обрабатываем как текст или пропускаем
+                    param_value = param_data[:param_length].decode('utf-8', errors='replace')
+                    print(f"Значение параметра (текст): {param_value}")
+                    param_data = param_data[param_length:]
+
+        except error:
+            print("Ошибка: Неверная структура данных!")
+            break
+
+        print("Конец сообщения\n")
 
 
 def client_thread(host, port, commands):
@@ -102,7 +169,7 @@ def listen_for_keypress():
     global stop_thread
     # Ожидание нажатия клавиши 'q'
     while not stop_thread:
-        if keyboard.is_pressed('q'):
+        if is_pressed('q'):
             print("Key 'q' pressed, stopping the command cycle")
             stop_thread = True
             break
