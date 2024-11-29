@@ -1,3 +1,4 @@
+#добавил комментарий
 import json
 import struct
 
