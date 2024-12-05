@@ -1,5 +1,7 @@
+#добавил комментарий
 import json
-import struct
+from struct import pack, unpack_from, error
+from datetime import datetime, timedelta
 
 import time
 import packet as pk
@@ -31,10 +33,16 @@ data4 = b'3\x000\xcf!\x9bw,\xdb\x01\x04\x00\x03\x00\x01\x00\x01\x00\x08\x9a\x99\
 
 
 
+from struct import unpack_from
+from datetime import datetime, timedelta
+
 def decode_packet(data):
+    '''Расшифровка сообщения'''
+    previous_param_value = None  # Переменная для хранения предыдущего значения параметра
+    
     while len(data) > 2:  # Минимум 2 байта для длины сообщения
         # Чтение длины сообщения
-        message_length, = struct.unpack_from('<H', data)
+        message_length, = unpack_from('<H', data)
         print(f"Длина сообщения: {message_length}")
 
         if len(data) < message_length + 2:  # Проверяем, хватает ли данных для сообщения
@@ -47,56 +55,91 @@ def decode_packet(data):
 
         try:
             # Чтение времени
-            timestamp, = struct.unpack_from('<Q', current_message, 2)
-            print(f"Время: {timestamp}")
+            timestamp, = unpack_from('<Q', current_message, 2)
+            # Преобразуем 100-наносекундные интервалы с 1 января 1601 года в стандартное время
+            epoch_start = datetime(1601, 1, 1)
+            time_in_seconds = timestamp / 1e7  # 100-наносекундные интервалы -> секунды
+            decoded_time = epoch_start + timedelta(seconds=time_in_seconds)
+            print(f"Время: {decoded_time}")
 
             # Чтение пакета
-            packet, = struct.unpack_from('<H', current_message, 10)
+            packet, = unpack_from('<H', current_message, 10)
             print(f"Пакет: {packet}")
 
-            # Чтение количества параметров
-            kol_param, = struct.unpack_from('<H', current_message, 12)
-            print(f"Количество параметров: {kol_param}")
+            if packet == 1:  # Если Пакет = 1, расшифровываем квитанцию
+                print("Расшифровка квитанции")
+                
+                # Чтение КодВозврата
+                kod_vozvrata, = unpack_from('<H', current_message, 12)
+                print(f"КодВозврата: {kod_vozvrata}")
 
-            # Обработка параметров
-            param_data = current_message[14:]  # Срез данных для параметров
-            for _ in range(kol_param):
-                if len(param_data) < 5:  # Минимум 5 байт на параметр (тип, номер, длина)
-                    print("Ошибка: Данные параметров выходят за пределы сообщения!")
-                    break
+                # Чтение КолПарам
+                kol_param, = unpack_from('<H', current_message, 14)
+                print(f"Количество параметров: {kol_param}")
 
-                # Чтение ТипАТМ, Номер параметра и Длины
-                type_atm, param_number, param_length = struct.unpack_from('<HHB', param_data)
-                param_data = param_data[5:]  # Убираем прочитанные 5 байт
-                print(f"Тип АТМ: {type_atm}, Номер параметра: {param_number}, Длина параметра: {param_length}")
+                # Чтение ТекстПарам
+                param_data = current_message[16:]  # Срез данных для параметров
+                for _ in range(kol_param):
+                    # Считываем текст параметра
+                    # Строка заканчивается нулевым байтом (STRING0)
+                    null_index = param_data.find(b'\x00')
+                    if null_index == -1:  # Не найден нулевой байт, значит ошибка
+                        print("Ошибка: Не найден нулевой байт в данных параметра!")
+                        break
+                    
+                    text_param = param_data[:null_index].decode('utf-8', errors='replace')
+                    print(f"ТекстПарам: {text_param}")
+                    param_data = param_data[null_index + 1:]  # Убираем прочитанный параметр
+            else:
+                # Чтение количества параметров
+                kol_param, = unpack_from('<H', current_message, 12)
+                print(f"Количество параметров: {kol_param}")
 
-                if len(param_data) < param_length:
-                    print("Ошибка: Недостаточно данных для значения параметра!")
-                    break
+                # Обработка других параметров
+                param_data = current_message[14:]  # Срез данных для параметров
+                for _ in range(kol_param):
+                    if len(param_data) < 5:  # Минимум 5 байт на параметр (тип, номер, длина)
+                        print("Ошибка: Данные параметров выходят за пределы сообщения!")
+                        break
 
-                # Чтение значения параметра
-                if param_length == 8:  # Если длина 8 байт, интерпретируем как double
-                    param_value, = struct.unpack_from('<d', param_data)
-                    print(f"Значение параметра: {param_value}")
-                    param_data = param_data[8:]
-                elif param_length == 4:  # Если длина 4 байта, интерпретируем как unsigned int
-                    param_value, = struct.unpack_from('<I', param_data)
-                    print(f"Значение параметра: {param_value}")
-                    param_data = param_data[4:]
-                elif param_length == 1:  # Если длина 1 байт, интерпретируем как unsigned byte
-                    param_value, = struct.unpack_from('<B', param_data)
-                    print(f"Значение параметра: {param_value}")
-                    param_data = param_data[1:]
-                else:  # Для других длин, обрабатываем как текст или пропускаем
-                    param_value = param_data[:param_length].decode('utf-8', errors='replace')
-                    print(f"Значение параметра (текст): {param_value}")
-                    param_data = param_data[param_length:]
+                    # Чтение ТипАТМ, Номер параметра и Длины
+                    type_atm, param_number, param_length = unpack_from('<HHB', param_data)
+                    param_data = param_data[5:]  # Убираем прочитанные 5 байт
+                    print(f"Тип АТМ: {type_atm}, Номер параметра: {param_number}, Длина параметра: {param_length}")
 
-        except struct.error:
+                    if len(param_data) < param_length:
+                        print("Ошибка: Недостаточно данных для значения параметра!")
+                        break
+
+                    # Чтение значения параметра
+                    if param_length == 8:  # Если длина 8 байт, интерпретируем как double
+                        param_value, = unpack_from('<d', param_data)
+                        param_value = round(param_value, 3)  # Округляем до 3 знаков
+                        param_data = param_data[8:]
+                    elif param_length == 4:  # Если длина 4 байта, интерпретируем как unsigned int
+                        param_value, = unpack_from('<I', param_data)
+                        param_value = round(param_value, 3)  # Округляем до 3 знаков
+                        param_data = param_data[4:]
+                    elif param_length == 1:  # Если длина 1 байт, интерпретируем как unsigned byte
+                        param_value, = unpack_from('<B', param_data)
+                        param_data = param_data[1:]
+                    else:  # Для других длин, обрабатываем как текст или пропускаем
+                        param_value = param_data[:param_length].decode('utf-8', errors='replace')
+                        param_data = param_data[param_length:]
+
+                    # Проверяем, изменилось ли значение параметра
+                    if param_value != previous_param_value:
+                        print(f"Значение параметра: {param_value}")
+                        previous_param_value = param_value  # Обновляем предыдущее значение
+                    else:
+                        print("Параметр не изменился, пропускаем вывод")
+
+        except error:
             print("Ошибка: Неверная структура данных!")
             break
 
         print("Конец сообщения\n")
+
 
 # Запуск декодирования
 decode_packet(data4)
