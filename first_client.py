@@ -23,10 +23,14 @@ def mess(data, t_time):
 def send_commands_thread(sock, commands):
     global stop_thread  # Используем глобальную переменную для контроля
     ku_complex = pk.Short_Comanda_KU(1, 998)
-    command_for_cycle = ["vkl_30v", "increase_ogr_uab", "otkl_30v", "nabros", "decrease_ogr_uab_precise", "sbros"]
+    ku_vkl_atm_biab = pk.Short_Comanda_KU(1, 1000)
+    ku_vkl_biab = pk.Short_Comanda_KU(1, 286)
+    command_for_cycle = ["nabros", "sbros"]
 
     # Отправка начальных команд
     sock.send(ku_complex.message())
+    sock.send(ku_vkl_atm_biab.message())
+    sock.send(ku_vkl_biab.message())
 
     # Бесконечный цикл отправки команд
     while not stop_thread:
@@ -129,7 +133,7 @@ def decode_packet(data):
                         print("Ошибка: Не найден нулевой байт в данных параметра!")
                         break
                     
-                    text_param = param_data[:null_index].decode('utf-8', errors='replace')
+                    text_param = param_data[:null_index].decode('cp1251', errors='replace')
                     print(f"ТекстПарам: {text_param}")
                     param_data = param_data[null_index + 1:]  # Убираем прочитанный параметр
             else:
@@ -182,6 +186,20 @@ def decode_packet(data):
 
         print("Конец сообщения\n")
 
+def listen_for_keypress(sock):
+    global stop_thread
+    # Ожидание нажатия клавиши 'q'
+    while not stop_thread:
+        if is_pressed('q'):
+            print("Key 'q' pressed, stopping the command cycle")
+            ku_otkl_biab = pk.Short_Comanda_KU(1, 287)
+            ku_otkl_biab = pk.Short_Comanda_KU(1, 1001)
+            ku_autonomous_mode = pk.Short_Comanda_KU(1,999)
+            stop_commands = [ku_otkl_biab, ku_otkl_biab, ku_autonomous_mode]
+            for command in stop_commands:
+                sock.send(command.message())
+            stop_thread = True
+            break
 
 def client_thread(host, port, commands):
     global stop_thread
@@ -202,23 +220,10 @@ def client_thread(host, port, commands):
     finally:
         stop_thread = True
 
-def listen_for_keypress(sock):
-    global stop_thread
-    # Ожидание нажатия клавиши 'q'
-    while not stop_thread:
-        if is_pressed('q'):
-            print("Key 'q' pressed, stopping the command cycle")
-            ku_otkl_biab = pk.Short_Comanda_KU(1, 287)
-            ku_otkl_biab = pk.Short_Comanda_KU(1, 1001)
-            ku_autonomous_mode = pk.Short_Comanda_KU(1,999)
-            stop_commands = [ku_otkl_biab, ku_otkl_biab, ku_autonomous_mode]
-            for command in stop_commands:
-                sock.send(command.message())
-            stop_thread = True
-            break
+
 
 if __name__ == "__main__":
-    HOST, PORT = "127.0.0.1", 10001
+    HOST, PORT = "192.168.1.150q", 10001
 
     # Загрузка команд из JSON-файла
     with open('command_biab100.json', 'r') as file:
