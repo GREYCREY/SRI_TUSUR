@@ -8,7 +8,7 @@ import packet as pk
 from datetime import datetime, timedelta
 
 # Глобальная переменная для остановки цикла
-stop_thread = False
+stop_thread = threading.Event()
 
 def komm(list_komm: dict, n_pak=2, n_param=0):
     '''Create command'''
@@ -21,7 +21,6 @@ def mess(data, t_time):
     return pack('<H', len(data)) + pack('<Q', int(t_time * 1000)) + data
 
 def send_commands_thread(sock, commands):
-    global stop_thread  # Используем глобальную переменную для контроля
     ku_complex = pk.Short_Comanda_KU(1, 998)
     ku_vkl_atm_biab = pk.Short_Comanda_KU(1, 1000)
     ku_vkl_biab = pk.Short_Comanda_KU(1, 286)
@@ -33,9 +32,9 @@ def send_commands_thread(sock, commands):
     sock.send(ku_vkl_biab.message())
 
     # Бесконечный цикл отправки команд
-    while not stop_thread:
+    while not stop_thread.is_set():
         for command_name in command_for_cycle:
-            if stop_thread:
+            if stop_thread.is_set():
                 print("Stopping the command cycle")
                 break
             command_details = commands['short_comm'][command_name]
@@ -47,10 +46,9 @@ def send_commands_thread(sock, commands):
 
 def receive_messages(sock):
     '''Получение и расшифровка сообщений с сервера'''
-    global stop_thread
     buffer = b''  # Буфер для накопления данных
 
-    while not stop_thread:
+    while not stop_thread.is_set():
         try:
             # Получаем данные из сокета
             chunk = sock.recv(16384)
@@ -80,7 +78,6 @@ def receive_messages(sock):
         except Exception as e:
             print("Ошибка при получении данных:", e)
             break
-
 
 def decode_packet(data):
     '''Расшифровка сообщения'''
@@ -158,16 +155,16 @@ def decode_packet(data):
                         break
 
                     # Чтение значения параметра
-                    if param_length == 8:  # Если длина 8 байт, интерпретируем как double
-                        param_value, = unpack_from('<d', param_data)
-                        param_value = round(param_value, 3)  # Округляем до 3 знаков
+                    if param_length == 2:  
+                        param_value, = unpack_from('<h', param_data)
+                        param_value = round(param_value, 3) 
                         param_data = param_data[8:]
-                    elif param_length == 4:  # Если длина 4 байта, интерпретируем как unsigned int
-                        param_value, = unpack_from('<I', param_data)
-                        param_value = round(param_value, 3)  # Округляем до 3 знаков
-                        param_data = param_data[4:]
-                    elif param_length == 1:  # Если длина 1 байт, интерпретируем как unsigned byte
+                    elif param_length == 1:  
                         param_value, = unpack_from('<B', param_data)
+                        param_value = round(param_value, 3)  
+                        param_data = param_data[4:]
+                    elif param_length == 4:  
+                        param_value, = unpack_from('<f', param_data)
                         param_data = param_data[1:]
                     else:  # Для других длин, обрабатываем как текст или пропускаем
                         param_value = param_data[:param_length].decode('utf-8', errors='replace')
@@ -187,22 +184,20 @@ def decode_packet(data):
         print("Конец сообщения\n")
 
 def listen_for_keypress(sock):
-    global stop_thread
     # Ожидание нажатия клавиши 'q'
-    while not stop_thread:
+    while not stop_thread.is_set():
         if is_pressed('q'):
             print("Key 'q' pressed, stopping the command cycle")
             ku_otkl_biab = pk.Short_Comanda_KU(1, 287)
-            ku_otkl_biab = pk.Short_Comanda_KU(1, 1001)
-            ku_autonomous_mode = pk.Short_Comanda_KU(1,999)
-            stop_commands = [ku_otkl_biab, ku_otkl_biab, ku_autonomous_mode]
+            ku_otkl_atm_biab = pk.Short_Comanda_KU(1, 1001)
+            ku_autonomous_mode = pk.Short_Comanda_KU(1, 999)
+            stop_commands = [ku_otkl_biab, ku_otkl_atm_biab, ku_autonomous_mode]
             for command in stop_commands:
                 sock.send(command.message())
-            stop_thread = True
+            stop_thread.set()
             break
 
 def client_thread(host, port, commands):
-    global stop_thread
     try:
         # Установление соединения с сервером
         with socket.create_connection((host, port)) as sock:
@@ -212,31 +207,29 @@ def client_thread(host, port, commands):
             send_thread.start()
             receive_thread.start()
 
+            # Запуск потока для прослушивания нажатия клавиши 'q'
+            keypress_thread = threading.Thread(target=listen_for_keypress, args=(sock,))
+            keypress_thread.start()
+
             # Ожидание завершения потоков
             send_thread.join()
             receive_thread.join()
+            keypress_thread.join()
     except ConnectionError:
         print("Server connection failed!")
     finally:
-        stop_thread = True
-
-
+        stop_thread.set()
 
 if __name__ == "__main__":
     HOST, PORT = "192.168.1.150q", 10001
 
     # Загрузка команд из JSON-файла
-    with open('command_biab100.json', 'r') as file:
+    with open('command_biab200.json', 'r') as file:
         commands = json.load(file)
 
     # Запуск клиента в отдельном потоке
     client_thread_thread = threading.Thread(target=client_thread, args=(HOST, PORT, commands))
     client_thread_thread.start()
 
-    # Запуск потока для прослушивания нажатия клавиши 'q'
-    listen_for_keypress_thread = threading.Thread(target=listen_for_keypress)
-    listen_for_keypress_thread.start()
-
     # Ожидание завершения всех потоков
     client_thread_thread.join()
-    listen_for_keypress_thread.join()

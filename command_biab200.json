@@ -1,0 +1,93 @@
+{
+    "short_comm": {
+      "complex_mode": {
+        "type_ku": 8,
+        "cod_ku": 1,
+        "type_param": "BYTE",
+        "value": 1,
+        "description": "Переводит стойку в режим 'Комплекс'"
+      },
+      "autonomous_mode": {
+        "type_ku": 8,
+        "cod_ku": 2,
+        "type_param": "BYTE",
+        "value": 1,
+        "description": "Переводит стойку в режим 'Автоном'"
+      },
+      "vkl_atm_biab": {
+        "type_ku": 9,
+        "cod_ku": 1,
+        "type_param": "BYTE",
+        "value": 1,
+        "description": "Включить АТМ БИАБ"
+      },
+      "otkl_atm_biab_kpa": {
+        "type_ku": 9,
+        "cod_ku": 2,
+        "type_param": "BYTE",
+        "value": 0,
+        "description": "Отключить АТМ БИАБ"
+      },
+      "initial": {
+        "type_ku": 7,
+        "cod_ku": 10,
+        "type_param": "BYTE",
+        "description": "Команда Исходное"
+      },
+      "vkl_biab": {
+        "type_ku": 7,
+        "cod_ku": 1,
+        "type_param": "BYTE",
+        "description": "Вкл БИАБ"
+      },
+      "otkl_biab": {
+        "type_ku": 7,
+        "cod_ku": 2,
+        "type_param": "BYTE",
+        "description": "Откл БИАБ"
+      },
+      "vkl_izd": {
+        "type_ku": 7,
+        "cod_ku": 3,
+        "type_param": "BYTE",
+        "description": "Подключить изделие"
+      },
+      "otkl_izd": {
+        "type_ku": 7,
+        "cod_ku": 4,
+        "type_param": "BYTE",
+        "description": "Отключить изделие"
+      },
+      "set_ustavka_uab": {
+        "type_ku": 2,
+        "cod_ku": 1,
+        "type_param": "DWORD",
+        "param_range": {
+          "min": 400,
+          "max": 1100
+        },
+        "description": "Выставить уставку напряжения"
+      },
+      "set_power_charge": {
+        "type_ku": 2,
+        "cod_ku": 2,
+        "type_param": "DWORD",
+        "param_range": {
+          "min": 100,
+          "max": 3400
+        },
+        "description": "Выставить уставку мощности заряда"
+      },
+      "set_power_discharge": {
+        "type_ku": 2,
+        "cod_ku": 3,
+        "type_param": "DWORD",
+        "param_range": {
+          "min": 100,
+          "max": 12000
+        },
+        "description": "Выставить уставку мощности разряда"
+      }
+    }
+  }
+  
