@@ -21,17 +21,21 @@ def mess(data, t_time):
     return pack('<H', len(data)) + pack('<Q', int(t_time * 1000)) + data
 
 def send_commands_thread(sock, commands):
-    ku_complex = pk.Short_Comanda_KU(1, 998)
-    ku_vkl_atm_biab = pk.Short_Comanda_KU(1, 1000)
-    ku_vkl_biab = pk.Short_Comanda_KU(1, 286)
-    command_for_cycle = ["nabros", "sbros"]
-
+    
     # Отправка начальных команд
-    sock.send(ku_complex.message())
-    sock.send(ku_vkl_atm_biab.message())
-    sock.send(ku_vkl_biab.message())
-
+    start_commands = ["complex_mode","vkl_atm_biab","vkl_biab"]
+    for command_name in start_commands:
+            if stop_thread.is_set():
+                print("Stopping the command cycle")
+                break
+            command_details = commands['short_comm'][command_name]
+            type_ku = command_details['type_ku']
+            cod_ku = command_details['cod_ku']
+            command = pk.Short_Comanda_KU(type_ku, cod_ku)
+            sock.send(command.message())
+    
     # Бесконечный цикл отправки команд
+    command_for_cycle = ["nabros", "sbros"]
     while not stop_thread.is_set():
         for command_name in command_for_cycle:
             if stop_thread.is_set():
