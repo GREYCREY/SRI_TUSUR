@@ -34,19 +34,12 @@ def send_commands_thread(sock, commands):
             command = pk.Short_Comanda_KU(type_ku, cod_ku)
             sock.send(command.message())
     
-    # Бесконечный цикл отправки команд
-    command_for_cycle = ["nabros", "sbros"]
-    while not stop_thread.is_set():
-        for command_name in command_for_cycle:
-            if stop_thread.is_set():
-                print("Stopping the command cycle")
-                break
-            command_details = commands['short_comm'][command_name]
-            type_ku = command_details['type_ku']
-            cod_ku = command_details['cod_ku']
-            command = pk.Short_Comanda_KU(type_ku, cod_ku)
-            sock.send(command.message())
-            sleep(3)
+    for i in range(0,11):
+        ustavka_IDT = pk.Short_Comanda_KU(4,i)
+        sock.send(ustavka_IDT.message())
+        print("Установите мультиметр на следующий ИДТ")
+
+    
 
 def receive_messages(sock):
     '''Получение и расшифровка сообщений с сервера'''
