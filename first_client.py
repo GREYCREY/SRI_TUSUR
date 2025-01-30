@@ -1,6 +1,7 @@
 import socket
 import json
 from struct import pack, unpack_from, error
+import numpy as np
 from time import sleep
 import threading
 from keyboard import is_pressed
@@ -34,12 +35,23 @@ def send_commands_thread(sock, commands):
             command = pk.Short_Comanda_KU(type_ku, cod_ku)
             sock.send(command.message())
     
-    for i in range(0,11):
-        ustavka_IDT = pk.Short_Comanda_KU(4,i)
-        sock.send(ustavka_IDT.message())
-        print("Установите мультиметр на следующий ИДТ")
-
-    
+    while not stop_thread.is_set():
+        for setting in range(2900 , 4100, 200):
+            if stop_thread.is_set():
+                print("Stopping the command cycle")
+                break
+            command = pk.Short_Comanda_KU(5, 0, 1,)
+            command.set_ustavka(setting)
+            sock.send(command.message())
+            sleep(5)
+        for invers_setting in np.arange(4100, 2900, -200):
+            if stop_thread.is_set():
+                print("Stopping the command cycle")
+                break
+            invers_command = pk.Short_Comanda_KU(5, 0, 1, invers_setting)
+            invers_command.set_ustavka(invers_setting)
+            sock.send(invers_command.message())
+            sleep(5)
 
 def receive_messages(sock):
     '''Получение и расшифровка сообщений с сервера'''
@@ -200,9 +212,9 @@ def client_thread(host, port, commands):
         with socket.create_connection((host, port)) as sock:
             # Запуск потоков для приема сообщений и отправки команд
             send_thread = threading.Thread(target=send_commands_thread, args=(sock, commands))
-            receive_thread = threading.Thread(target=receive_messages, args=(sock,))
+            '''receive_thread = threading.Thread(target=receive_messages, args=(sock,))'''
             send_thread.start()
-            receive_thread.start()
+            '''receive_thread.start()'''
 
             # Запуск потока для прослушивания нажатия клавиши 'q'
             keypress_thread = threading.Thread(target=listen_for_keypress, args=(sock,))
@@ -210,7 +222,7 @@ def client_thread(host, port, commands):
 
             # Ожидание завершения потоков
             send_thread.join()
-            receive_thread.join()
+            '''receive_thread.join()'''
             keypress_thread.join()
     except ConnectionError:
         print("Server connection failed!")
