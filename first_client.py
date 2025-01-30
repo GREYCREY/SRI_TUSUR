@@ -41,7 +41,7 @@ def send_commands_thread(sock, commands):
                 print("Stopping the command cycle")
                 break
             command = pk.Short_Comanda_KU(5, 0)
-            command.set_ustavka(setting)
+            command.set_ustavka(setting,4)
             sock.send(command.message())
             sleep(5)
         for invers_setting in np.arange(4100, 2900, -200):
@@ -49,7 +49,7 @@ def send_commands_thread(sock, commands):
                 print("Stopping the command cycle")
                 break
             invers_command = pk.Short_Comanda_KU(5, 0)
-            invers_command.set_ustavka(invers_setting)
+            invers_command.set_ustavka(invers_setting,4)
             sock.send(invers_command.message())
             sleep(5)
 
