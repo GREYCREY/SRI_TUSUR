@@ -40,7 +40,7 @@ def send_commands_thread(sock, commands):
             if stop_thread.is_set():
                 print("Stopping the command cycle")
                 break
-            command = pk.Short_Comanda_KU(5, 0, 1,)
+            command = pk.Short_Comanda_KU(5, 0)
             command.set_ustavka(setting)
             sock.send(command.message())
             sleep(5)
@@ -48,7 +48,7 @@ def send_commands_thread(sock, commands):
             if stop_thread.is_set():
                 print("Stopping the command cycle")
                 break
-            invers_command = pk.Short_Comanda_KU(5, 0, 1, invers_setting)
+            invers_command = pk.Short_Comanda_KU(5, 0)
             invers_command.set_ustavka(invers_setting)
             sock.send(invers_command.message())
             sleep(5)
