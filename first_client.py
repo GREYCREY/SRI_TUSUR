@@ -35,22 +35,24 @@ def send_commands_thread(sock, commands):
             command = pk.Short_Comanda_KU(type_ku, cod_ku)
             sock.send(command.message())
     
-    while not stop_thread.is_set():
-        for setting in range(2900 , 4100, 200):
-            if stop_thread.is_set():
-                print("Stopping the command cycle")
-                break
-            command = pk.Short_Comanda_KU(5, 0)
-            command.set_ustavka(setting,4)
-            sock.send(command.message())
-            sleep(5)
-        for invers_setting in np.arange(4100, 2900, -200):
-            if stop_thread.is_set():
-                print("Stopping the command cycle")
-                break
-            invers_command = pk.Short_Comanda_KU(5, 0)
-            invers_command.set_ustavka(invers_setting,4)
-            sock.send(invers_command.message())
+    while not stop_thread.is_set(): 
+        for setting in range(2900 , 4100, 200): 
+            print(setting) 
+            if stop_thread.is_set(): 
+                print("Stopping the command cycle") 
+                break 
+            command = pk.Short_Comanda_KU(5, 0, 1) 
+            #print(command.message()) 
+            sock.send(command.set_ustavka(setting, 3)) 
+            sleep(5) 
+        for invers_setting in np.arange(4100, 2900, -200): 
+            print(invers_setting) 
+            if stop_thread.is_set(): 
+                print("Stopping the command cycle") 
+                break 
+            invers_command = pk.Short_Comanda_KU(5, 0, 1) 
+            #print(command.message()) 
+            sock.send(invers_command.set_ustavka(invers_setting, 3)) 
             sleep(5)
 
 def receive_messages(sock):
