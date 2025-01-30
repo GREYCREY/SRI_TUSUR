@@ -233,7 +233,7 @@ if __name__ == "__main__":
     HOST, PORT = "192.168.1.150q", 10001
 
     # Загрузка команд из JSON-файла
-    with open('command_biab200.json', 'r') as file:
+    with open('command_biab200.json', 'r', encoding='utf-8') as file:
         commands = json.load(file)
 
     # Запуск клиента в отдельном потоке
