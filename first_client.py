@@ -1,4 +1,6 @@
 import socket
+import csv
+import queue
 import json
 from struct import pack, unpack_from, error
 from time import sleep
@@ -9,6 +11,7 @@ from datetime import datetime, timedelta
 
 # Глобальная переменная для остановки цикла
 stop_thread = threading.Event()
+param_value_queue = queue.Queue()
 
 def komm(list_komm: dict, n_pak=2, n_param=0):
     '''Create command'''
@@ -20,23 +23,42 @@ def mess(data, t_time):
     '''Create message'''
     return pack('<H', len(data)) + pack('<Q', int(t_time * 1000)) + data
 
-def send_commands_thread(sock, commands):
+def write_to_csv(current_IDT, current_ustavka_IDT, param_value, file_name='output.csv'):
+    # Расчет погрешности
+    error = abs(current_IDT - current_ustavka_IDT)
+    status = 'OK' if error <= 0.1 else 'НеОК'
     
+    # Запись данных в CSV-файл
+    with open(file_name, mode='a', newline='') as file:
+        writer = csv.writer(file)
+        writer.writerow([current_IDT, current_ustavka_IDT, param_value, error, status])
+        print("Текущий IDT:{current_IDT} Уставка:{current_ustavka_IDT} Сопротивление{param_value} Погрешность:{error} Статус:{status}")
+
+def send_commands_thread(sock, commands):
     # Отправка начальных команд
     start_commands = ["complex_mode","vkl_atm_biab","vkl_biab"]
     for command_name in start_commands:
-            if stop_thread.is_set():
-                print("Stopping the command cycle")
-                break
-            command_details = commands['short_comm'][command_name]
-            type_ku = command_details['type_ku']
-            cod_ku = command_details['cod_ku']
-            command = pk.Short_Comanda_KU(type_ku, cod_ku)
-            sock.send(command.message())
+        if stop_thread.is_set():
+            print("Stopping the command cycle")
+            break
+        command_details = commands['short_comm'][command_name]
+        type_ku = command_details['type_ku']
+        cod_ku = command_details['cod_ku']
+        command = pk.Short_Comanda_KU(type_ku, cod_ku)
+        sock.send(command.message())
     
-    for i in range(0,11):
-        ustavka_IDT = pk.Short_Comanda_KU(4,i)
-        sock.send(ustavka_IDT.message())
+    for current_IDT in range(0, 11):
+        for current_ustavka_IDT in range(990, 1200, 5):
+            ustavka_IDT = pk.Short_Comanda_KU(20, current_IDT, 1)
+            sock.send(ustavka_IDT.set_ustavka(current_ustavka_IDT, 3))
+            sleep(2)
+
+            # Получаем значение param_value из очереди
+            try:
+                param_value = param_value_queue.get(timeout=5)  # Ожидание не более 5 секунд
+                write_to_csv(current_IDT, current_ustavka_IDT, param_value)
+            except queue.Empty:
+                print("Ошибка: Не удалось получить param_value из очереди!")
         print("Установите мультиметр на следующий ИДТ")
 
     
@@ -77,7 +99,6 @@ def receive_messages(sock):
             break
 
 def decode_packet(data):
-    '''Расшифровка сообщения'''
     previous_param_value = None  # Переменная для хранения предыдущего значения параметра
     
     while len(data) > 2:  # Минимум 2 байта для длины сообщения
@@ -145,40 +166,18 @@ def decode_packet(data):
                     # Чтение ТипАТМ, Номер параметра и Длины
                     type_atm, param_number, param_length = unpack_from('<HHB', param_data)
                     param_data = param_data[5:]  # Убираем прочитанные 5 байт
-                    print(f"Тип АТМ: {type_atm}, Номер параметра: {param_number}, Длина параметра: {param_length}")
-
                     if len(param_data) < param_length:
                         print("Ошибка: Недостаточно данных для значения параметра!")
                         break
-
-                    # Чтение значения параметра
-                    if param_length == 2:  
+                    if type_atm == 20:
                         param_value, = unpack_from('<h', param_data)
-                        param_value = round(param_value, 3) 
-                        param_data = param_data[8:]
-                    elif param_length == 1:  
-                        param_value, = unpack_from('<B', param_data)
-                        param_value = round(param_value, 3)  
-                        param_data = param_data[4:]
-                    elif param_length == 4:  
-                        param_value, = unpack_from('<f', param_data)
-                        param_data = param_data[1:]
-                    else:  # Для других длин, обрабатываем как текст или пропускаем
-                        param_value = param_data[:param_length].decode('utf-8', errors='replace')
-                        param_data = param_data[param_length:]
+                        param_value = round(param_value, 3)
+                        param_data = param_data[2:]
 
-                    # Проверяем, изменилось ли значение параметра
-                    if param_value != previous_param_value:
-                        print(f"Значение параметра: {param_value}")
-                        previous_param_value = param_value  # Обновляем предыдущее значение
-                    else:
-                        print("Параметр не изменился, пропускаем вывод")
-
-        except error:
-            print("Ошибка: Неверная структура данных!")
-            break
-
-        print("Конец сообщения\n")
+                        # Помещаем значение в очередь
+                        param_value_queue.put(param_value)
+        except Exception as e:
+            print("Ошибка при обработке пакета:", e)               
 
 def listen_for_keypress(sock):
     # Ожидание нажатия клавиши 'q'
@@ -223,6 +222,7 @@ if __name__ == "__main__":
     # Загрузка команд из JSON-файла
     with open('command_biab200.json', 'r') as file:
         commands = json.load(file)
+    param_value_queue = queue.Queue()
 
     # Запуск клиента в отдельном потоке
     client_thread_thread = threading.Thread(target=client_thread, args=(HOST, PORT, commands))
