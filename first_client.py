@@ -25,7 +25,7 @@ def mess(data, t_time):
 
 def write_to_csv(current_IDT, current_ustavka_IDT, param_value, file_name='output.csv'):
     # Расчет погрешности
-    error = abs(current_IDT - current_ustavka_IDT)
+    error = abs(current_ustavka_IDT - param_value)
     status = 'OK' if error <= 0.1 else 'НеОК'
     
     # Запись данных в CSV-файл
@@ -48,9 +48,9 @@ def send_commands_thread(sock, commands):
         sock.send(command.message())
     
     for current_IDT in range(0, 11):
-        for current_ustavka_IDT in range(990, 1200, 5):
-            ustavka_IDT = pk.Short_Comanda_KU(20, current_IDT, 1)
-            sock.send(ustavka_IDT.set_ustavka(current_ustavka_IDT, 3))
+        for current_ustavka_IDT in range(990, 1205, 5):
+            ustavka_IDT = pk.Short_Comanda_KU(4, current_IDT, 1)
+            sock.send(ustavka_IDT.set_ustavka(current_ustavka_IDT, 4))
             sleep(2)
 
             # Получаем значение param_value из очереди
@@ -59,7 +59,7 @@ def send_commands_thread(sock, commands):
                 write_to_csv(current_IDT, current_ustavka_IDT, param_value)
             except queue.Empty:
                 print("Ошибка: Не удалось получить param_value из очереди!")
-        print("Установите мультиметр на следующий ИДТ")
+        input("Установите мультиметр на следующий ИДТ")
 
     
 
@@ -128,15 +128,15 @@ def decode_packet(data):
             print(f"Пакет: {packet}")
 
             if packet == 1:  # Если Пакет = 1, расшифровываем квитанцию
-                print("Расшифровка квитанции")
+                #print("Расшифровка квитанции")
                 
                 # Чтение КодВозврата
                 kod_vozvrata, = unpack_from('<H', current_message, 12)
-                print(f"КодВозврата: {kod_vozvrata}")
+                #print(f"КодВозврата: {kod_vozvrata}")
 
                 # Чтение КолПарам
                 kol_param, = unpack_from('<H', current_message, 14)
-                print(f"Количество параметров: {kol_param}")
+               # print(f"Количество параметров: {kol_param}")
 
                 # Чтение ТекстПарам
                 param_data = current_message[16:]  # Срез данных для параметров
@@ -149,12 +149,12 @@ def decode_packet(data):
                         break
                     
                     text_param = param_data[:null_index].decode('cp1251', errors='replace')
-                    print(f"ТекстПарам: {text_param}")
+                    #print(f"ТекстПарам: {text_param}")
                     param_data = param_data[null_index + 1:]  # Убираем прочитанный параметр
             else:
                 # Чтение количества параметров
                 kol_param, = unpack_from('<H', current_message, 12)
-                print(f"Количество параметров: {kol_param}")
+                #print(f"Количество параметров: {kol_param}")
 
                 # Обработка других параметров
                 param_data = current_message[14:]  # Срез данных для параметров
@@ -172,7 +172,7 @@ def decode_packet(data):
                     if type_atm == 20:
                         param_value, = unpack_from('<h', param_data)
                         param_value = round(param_value, 3)
-                        param_data = param_data[2:]
+                        param_data = param_data[4:]
 
                         # Помещаем значение в очередь
                         param_value_queue.put(param_value)
@@ -217,10 +217,10 @@ def client_thread(host, port, commands):
         stop_thread.set()
 
 if __name__ == "__main__":
-    HOST, PORT = "192.168.1.150q", 10001
+    HOST, PORT = "192.168.0.231", 10001
 
     # Загрузка команд из JSON-файла
-    with open('command_biab200.json', 'r') as file:
+    with open('command_biab200.json', 'r', encoding='utf-8') as file:
         commands = json.load(file)
     param_value_queue = queue.Queue()
 
