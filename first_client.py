@@ -12,6 +12,8 @@ from datetime import datetime, timedelta
 # Глобальная переменная для остановки цикла
 stop_thread = threading.Event()
 param_value_queue = queue.Queue()
+ustavka_response = {}  # {уставка: (Event, значение)}
+ustavka_lock = threading.Lock()  # Для безопасного доступа из разных потоков
 
 def komm(list_komm: dict, n_pak=2, n_param=0):
     '''Create command'''
@@ -25,14 +27,14 @@ def mess(data, t_time):
 
 def write_to_csv(current_IDT, current_ustavka_IDT, param_value, file_name='output.csv'):
     # Расчет погрешности
-    error = abs(current_ustavka_IDT - param_value)
-    status = 'OK' if error <= 0.1 else 'НеОК'
+    fault = abs(current_ustavka_IDT - param_value)
+    status = 'OK' if fault <= 0.1 else 'НеОК'
     
     # Запись данных в CSV-файл
     with open(file_name, mode='a', newline='') as file:
         writer = csv.writer(file)
-        writer.writerow([current_IDT, current_ustavka_IDT, param_value, error, status])
-        print("Текущий IDT:{current_IDT} Уставка:{current_ustavka_IDT} Сопротивление{param_value} Погрешность:{error} Статус:{status}")
+        writer.writerow([current_IDT, current_ustavka_IDT, param_value, fault, status])
+        print(f"Текущий IDT:{current_IDT} Уставка:{current_ustavka_IDT} Сопротивление{param_value} Погрешность:{fault} Статус:{status}")
 
 def send_commands_thread(sock, commands):
     # Отправка начальных команд
@@ -48,17 +50,28 @@ def send_commands_thread(sock, commands):
         sock.send(command.message())
     
     for current_IDT in range(0, 11):
-        for current_ustavka_IDT in range(990, 1205, 5):
-            ustavka_IDT = pk.Short_Comanda_KU(4, current_IDT, 1)
-            sock.send(ustavka_IDT.set_ustavka(current_ustavka_IDT, 4))
-            sleep(2)
+        for current_IDT in range(0, 11):
+            for current_ustavka_IDT in range(990, 1205, 5):
+                with ustavka_lock:
+                    event = threading.Event()
+                    ustavka_response[current_ustavka_IDT] = (event, None)
 
-            # Получаем значение param_value из очереди
-            try:
-                param_value = param_value_queue.get(timeout=5)  # Ожидание не более 5 секунд
-                write_to_csv(current_IDT, current_ustavka_IDT, param_value)
-            except queue.Empty:
-                print("Ошибка: Не удалось получить param_value из очереди!")
+                # Отправка уставки
+                ustavka_IDT = pk.Short_Comanda_KU(4, current_IDT, 1)
+                sock.send(ustavka_IDT.set_ustavka(current_ustavka_IDT, 4))
+                print(f"Отправлена уставка: {current_ustavka_IDT}")
+
+                # Ожидание ответа
+                if not event.wait(timeout=10):  # Ждем 10 секунд
+                    print(f"Ошибка: не получили ответ на уставку {current_ustavka_IDT}")
+                    continue
+
+                # Получаем значение
+                with ustavka_lock:
+                    _, param_value = ustavka_response.pop(current_ustavka_IDT, (None, None))
+
+                if param_value is not None:
+                    write_to_csv(current_IDT, current_ustavka_IDT, param_value)
         input("Установите мультиметр на следующий ИДТ")
 
     
@@ -172,25 +185,31 @@ def decode_packet(data):
                     if type_atm == 20:
                         param_value, = unpack_from('<h', param_data)
                         param_value = round(param_value, 3)
-                        param_data = param_data[4:]
 
-                        # Помещаем значение в очередь
-                        param_value_queue.put(param_value)
+                        with ustavka_lock:
+                            if param_value in ustavka_response:
+                                event, _ = ustavka_response[param_value]
+                                ustavka_response[param_value] = (event, param_value)
+                                event.set()  # Разблокируем `send_commands_thread`
+
         except Exception as e:
             print("Ошибка при обработке пакета:", e)               
 
-def listen_for_keypress(sock):
+def listen_for_keypress(sock,commands):
     # Ожидание нажатия клавиши 'q'
     while not stop_thread.is_set():
         if is_pressed('q'):
+            
             print("Key 'q' pressed, stopping the command cycle")
-            ku_otkl_biab = pk.Short_Comanda_KU(1, 287)
-            ku_otkl_atm_biab = pk.Short_Comanda_KU(1, 1001)
-            ku_autonomous_mode = pk.Short_Comanda_KU(1, 999)
-            stop_commands = [ku_otkl_biab, ku_otkl_atm_biab, ku_autonomous_mode]
-            for command in stop_commands:
+            
+            stop_commands = ["otkl_biab", "otkl_atm_biab_kpa", "autonomous_mode"]
+            
+            for command_name in stop_commands:
+                command_details = commands['short_comm'][command_name]
+                type_ku = command_details['type_ku']
+                cod_ku = command_details['cod_ku']
+                command = pk.Short_Comanda_KU(type_ku, cod_ku)
                 sock.send(command.message())
-            stop_thread.set()
             break
 
 def client_thread(host, port, commands):
