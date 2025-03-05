@@ -1,0 +1,8 @@
+{
+"Modbus":{
+  "Address": [47, 54, 58],
+  "COMport_PH": "COM24",
+  "COMprot_calibrator": "COM3",
+  "COMport_Agilent": "COM25"
+}
+}

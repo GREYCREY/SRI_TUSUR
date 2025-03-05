@@ -1,4 +1,7 @@
 import socket
+import sys
+import serial
+import json_open
 import csv
 import queue
 import json
@@ -15,6 +18,60 @@ param_value_queue = queue.Queue()
 ustavka_response = {}  # {уставка: (Event, значение)}
 ustavka_lock = threading.Lock()  # Для безопасного доступа из разных потоков
 wait_for_input_event = threading.Event()
+Address, COMport_PH, COMport_calibrator, COMport_Agilent = json_open.json_address_modbus()
+try:
+    ser_a = serial.Serial(port=COMport_Agilent, baudrate=9600, bytesize=8, stopbits=2, timeout=5)  # Настройка RS-232
+except serial.SerialException as e:
+    print(f"Ошибка при подключении Agilent к COM порту '{COMport_Agilent}'")
+    input("Нажмите клавишу 'Enter' для выхода из консоли")
+    sys.exit()
+agilent_lock = threading.Lock()  # Блокировка для синхронизации
+agilent_stop_event = threading.Event()  # Событие остановки
+
+def settings_Agilent():
+    print("-------------------------------")
+    ser_a.write(b'SYST:REM\r\n')
+    sleep(1)
+    print("Дистанционное управление Agilent включено")
+    ser_a.write(b'*RST\r\n')
+    sleep(1)
+    print("Сброс всех настроек Agilent")
+    ser_a.write(b'SENSE:VOLTAGE:DC:NPLC 100\r\n')
+    sleep(1)
+    print("Выставлен режим SLOW 6 DIGIT")
+    ser_a.write(b'INPut:IMPedance:AUTO ON\r\n')
+    sleep(1)
+    print("Выставлено входное сопротивление 10 ГОм")
+    print("-------------------------------")
+
+def Agilent_value():
+    """Получение данных с Agilent"""
+    ser_a.write(b'INITiate:IMMediate\n')
+    sleep(5)  # Ожидание завершения измерения
+    ser_a.write(b'FETCH?\r\n')
+    sleep(1)
+    serialString_a = ser_a.readline()
+    try:
+        b, c = serialString_a.decode("ASCII").rstrip().split('E')
+        value = float(b) * (10 ** int(c))
+        return round(value, 6)
+    except Exception as e:
+        print("Ошибка при чтении данных Agilent:", e)
+        return None
+
+def agilent_thread(file_name='output.csv'):
+    """Поток получения данных с Agilent и запись в CSV"""
+    settings_Agilent()
+    while not agilent_stop_event.is_set():
+        with agilent_lock:
+            value = Agilent_value()
+            if value is not None:
+                # Открываем CSV файл и добавляем данные
+                with open(file_name, mode='a', newline='') as file:
+                    writer = csv.writer(file)
+                    writer.writerow(["Agilent", value, datetime.now().strftime("%Y-%m-%d %H:%M:%S")])
+                    print(f"Agilent Value: {value}")
+        sleep(10)  # Период опроса прибора
 
 def komm(list_komm: dict, n_pak=2, n_param=0):
     '''Create command'''
@@ -232,26 +289,23 @@ def listen_for_keypress(sock,commands):
 
 def client_thread(host, port, commands):
     try:
-        # Установление соединения с сервером
         with socket.create_connection((host, port)) as sock:
-            # Запуск потоков для приема сообщений и отправки команд
             send_thread = threading.Thread(target=send_commands_thread, args=(sock, commands))
             receive_thread = threading.Thread(target=receive_messages, args=(sock,))
+            agilent_thread_instance = threading.Thread(target=agilent_thread)
+
             send_thread.start()
             receive_thread.start()
+            agilent_thread_instance.start()
 
-            # Запуск потока для прослушивания нажатия клавиши 'q'
-            keypress_thread = threading.Thread(target=listen_for_keypress, args=(sock,))
-            keypress_thread.start()
-
-            # Ожидание завершения потоков
             send_thread.join()
             receive_thread.join()
-            keypress_thread.join()
+            agilent_thread_instance.join()
     except ConnectionError:
         print("Server connection failed!")
     finally:
         stop_thread.set()
+        agilent_stop_event.set()
 
 if __name__ == "__main__":
     HOST, PORT = "192.168.0.231", 10001
