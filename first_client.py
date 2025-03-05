@@ -2,8 +2,8 @@ import socket
 import csv
 import queue
 import json
-from struct import pack, unpack_from, error
 from time import sleep
+from struct import pack, unpack_from, error
 import threading
 from keyboard import is_pressed
 import packet as pk
@@ -14,6 +14,7 @@ stop_thread = threading.Event()
 param_value_queue = queue.Queue()
 ustavka_response = {}  # {уставка: (Event, значение)}
 ustavka_lock = threading.Lock()  # Для безопасного доступа из разных потоков
+wait_for_input_event = threading.Event()
 
 def komm(list_komm: dict, n_pak=2, n_param=0):
     '''Create command'''
@@ -35,6 +36,13 @@ def write_to_csv(current_IDT, current_ustavka_IDT, param_value, file_name='outpu
         writer = csv.writer(file)
         writer.writerow([current_IDT, current_ustavka_IDT, param_value, fault, status])
         print(f"Текущий IDT:{current_IDT} Уставка:{current_ustavka_IDT} Сопротивление{param_value} Погрешность:{fault} Статус:{status}")
+
+def wait_for_input():
+    """Функция ожидания нажатия клавиши Enter"""
+    while not stop_thread.is_set():
+        input("Установите мультиметр на следующий ИДТ и нажмите Enter...")
+        wait_for_input_event.set()  # Разрешаем продолжить выполнение программы
+        wait_for_input_event.clear()  # Сбрасываем событие для следующего ожидания
 
 def send_commands_thread(sock, commands):
     # Отправка начальных команд
@@ -72,8 +80,18 @@ def send_commands_thread(sock, commands):
 
                 if param_value is not None:
                     write_to_csv(current_IDT, current_ustavka_IDT, param_value)
-        input("Установите мультиметр на следующий ИДТ")
-
+        wait_for_input_event.wait()
+    sleep(10)
+    end_commands = ["otkl_biab", "otkl_atm_biab_kpa", "autonomous_mode"]
+    for command_name in end_commands:
+        if stop_thread.is_set():
+            print("Stopping the command cycle")
+            break
+        command_details = commands['short_comm'][command_name]
+        type_ku = command_details['type_ku']
+        cod_ku = command_details['cod_ku']
+        command = pk.Short_Comanda_KU(type_ku, cod_ku)
+        sock.send(command.message())
     
 
 def receive_messages(sock):
