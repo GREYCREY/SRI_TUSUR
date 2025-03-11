@@ -16,16 +16,6 @@ def settings_Agilent():
     print("-------------------------------")
     ser_a.write(b'SYST:REM\r\n')                  #включить дистанционное управление
     time.sleep(1)
-    print("Дистанционное управление Agilent'ом включено")
-    ser_a.write(b'*RST\r\n')                        #сброс
-    time.sleep(1)
-    print("Сброс всех настроек Agilent'а")
-    ser_a.write(b'SENSE:VOLTAGE:DC:NPLC 100\r\n')   #Медленное измерение SLOW 6 DIGIT
-    time.sleep(1)
-    print("Выставлен режим SLOW 6 DIGIT")
-    ser_a.write(b'INPut:IMPedance:AUTO ON\r\n')     # Входное сопротивление 10 ГОм
-    time.sleep(1)
-    print("Выставлено входное сопротивление 10 ГОм")
     ser_a.write(b'CONF:FRES\r\n')                   #включить 4-проводной режим измерения
     print("-------------------------------")
 
@@ -40,3 +30,7 @@ def Agilent_value():
     vivod = (float(b) * (10 ** int(c))) #Десятичное числа с запятой
     #print(vivod)
     return(vivod)
+
+settings_Agilent()
+value = Agilent_value()
+print(f"Измеренное значение: {value}")
