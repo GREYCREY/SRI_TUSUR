@@ -30,18 +30,9 @@ agilent_stop_event = threading.Event()  # Событие остановки
 
 def settings_Agilent():
     print("-------------------------------")
-    ser_a.write(b'SYST:REM\r\n')
+    ser_a.write(b'SYST:REM\r\n')                  #включить дистанционное управление
     sleep(1)
-    print("Дистанционное управление Agilent включено")
-    ser_a.write(b'*RST\r\n')
-    sleep(1)
-    print("Сброс всех настроек Agilent")
-    ser_a.write(b'SENSE:VOLTAGE:DC:NPLC 100\r\n')
-    sleep(1)
-    print("Выставлен режим SLOW 6 DIGIT")
-    ser_a.write(b'INPut:IMPedance:AUTO ON\r\n')
-    sleep(1)
-    print("Выставлено входное сопротивление 10 ГОм")
+    ser_a.write(b'CONF:FRES\r\n')                   #включить 4-проводной режим измерения
     print("-------------------------------")
 
 def Agilent_value():
