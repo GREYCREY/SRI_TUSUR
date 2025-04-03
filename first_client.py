@@ -12,16 +12,14 @@ from keyboard import is_pressed
 import packet as pk
 from datetime import datetime, timedelta
 
-# Глобальные переменные для управления потоками
+# Глобальная переменная для остановки цикла
 stop_thread = threading.Event()
 param_value_queue = queue.Queue()
 ustavka_response = {}  # {уставка: (Event, значение)}
 ustavka_lock = threading.Lock()  # Для безопасного доступа из разных потоков
 wait_for_input_event = threading.Event()
-agilent_value_event = threading.Event()  # Событие для ожидания значения от Agilent
-current_agilent_value = None  # Текущее значение от Agilent
-agilent_value_lock = threading.Lock()  # Блокировка для синхронизации доступа к current_agilent_value
-
+agilent_value = None  # Глобальная переменная для хранения значения
+agilent_value_event = threading.Event()  # Событие для ожидания нового значения
 Address, COMport_PH, COMport_calibrator, COMport_Agilent = json_open.json_address_modbus()
 try:
     ser_a = serial.Serial(port=COMport_Agilent, baudrate=9600, bytesize=8, stopbits=2, timeout=5)  # Настройка RS-232
@@ -56,20 +54,17 @@ def Agilent_value():
 
 def agilent_thread(file_name='output.csv'):
     """Поток получения данных с Agilent и запись в CSV"""
+    global agilent_value
     settings_Agilent()
     while not agilent_stop_event.is_set():
         with agilent_lock:
             value = Agilent_value()
             if value is not None:
-                with agilent_value_lock:
-                    current_agilent_value = value
-                    agilent_value_event.set()  # Сигнализируем, что новое значение получено
-                
-                # Открываем CSV файл и добавляем данные
-                with open(file_name, mode='a', newline='') as file:
-                    writer = csv.writer(file)
-                    writer.writerow(["Agilent", value, datetime.now().strftime("%Y-%m-%d %H:%M:%S")])
-                    print(f"Agilent Value: {value}")
+                with ustavka_lock:
+                    agilent_value = value  # Обновляем значение
+                    agilent_value_event.set()  # Сообщаем, что значение обновлено
+            else:
+                print("Ошибка: Agilent не вернул значение")
         sleep(10)  # Период опроса прибора
 
 def komm(list_komm: dict, n_pak=2, n_param=0):
@@ -90,16 +85,8 @@ def write_to_csv(current_IDT, current_ustavka_IDT, param_value, agilent_value, f
     # Запись данных в CSV-файл
     with open(file_name, mode='a', newline='') as file:
         writer = csv.writer(file)
-        writer.writerow([
-            current_IDT, 
-            current_ustavka_IDT, 
-            param_value, 
-            agilent_value,
-            fault, 
-            status,
-            datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-        ])
-        print(f"Текущий IDT:{current_IDT} Уставка:{current_ustavka_IDT} Сопротивление:{param_value} Agilent:{agilent_value} Погрешность:{fault} Статус:{status}")
+        writer.writerow([current_IDT, current_ustavka_IDT, param_value,agilent_value, fault, status])
+        print(f"Текущий IDT:{current_IDT} Уставка:{current_ustavka_IDT} Сопротивление{param_value} Погрешность:{fault} Статус:{status}")
 
 def wait_for_input():
     """Функция ожидания нажатия клавиши Enter"""
@@ -122,45 +109,33 @@ def send_commands_thread(sock, commands):
         sock.send(command.message())
     
     for current_IDT in range(0, 11):
-        for current_ustavka_IDT in range(990, 1205, 5):
-            with ustavka_lock:
-                event = threading.Event()
-                ustavka_response[current_ustavka_IDT] = (event, None)
+        for current_IDT in range(0, 11):
+            for current_ustavka_IDT in range(990, 1205, 5):
+                with ustavka_lock:
+                    event = threading.Event()
+                    ustavka_response[current_ustavka_IDT] = (event, None)
 
-            # Отправка уставки
-            ustavka_IDT = pk.Short_Comanda_KU(4, current_IDT, 1)
-            sock.send(ustavka_IDT.set_ustavka(current_ustavka_IDT, 4))
-            print(f"Отправлена уставка: {current_ustavka_IDT}")
-            
-            # Ожидание ответа от устройства
-            if not event.wait(timeout=10):  # Ждем 10 секунд
-                print(f"Ошибка: не получили ответ на уставку {current_ustavka_IDT}")
-                continue
+                # Отправка уставки
+                ustavka_IDT = pk.Short_Comanda_KU(4, current_IDT, 1)
+                sock.send(ustavka_IDT.set_ustavka(current_ustavka_IDT, 4))
+                print(f"Отправлена уставка: {current_ustavka_IDT}")
 
-            # Получаем значение от устройства
-            with ustavka_lock:
-                _, param_value = ustavka_response.pop(current_ustavka_IDT, (None, None))
+                # Ожидание ответа
+                if not event.wait(timeout=10):  # Ждем 10 секунд
+                    print(f"Ошибка: не получили ответ на уставку {current_ustavka_IDT}")
+                    continue
 
-            # Ожидаем новое значение от Agilent
-            agilent_value_event.clear()
-            with agilent_value_lock:
-                agilent_value = current_agilent_value
-            
-            # Если значение еще не получено, ждем
-            if agilent_value is None:
-                print("Ожидание значения от Agilent...")
-                agilent_value_event.wait(timeout=15)
-                with agilent_value_lock:
-                    agilent_value = current_agilent_value
-            
-            if param_value is not None and agilent_value is not None:
-                write_to_csv(current_IDT, current_ustavka_IDT, param_value, agilent_value)
+                # Получаем значение
+                with ustavka_lock:
+                    _, param_value = ustavka_response.pop(current_ustavka_IDT, (None, None))
+                    current_agilent_value = agilent_value  # Копируем значение
+                    agilent_value_event.clear()  # Сбрасываем событие
+                    
+                if param_value is not None and current_agilent_value is not None:
+                    write_to_csv(current_IDT, current_ustavka_IDT, param_value, current_agilent_value)
         
-        # Ожидание подтверждения оператора для перехода к следующему ИДТ
         wait_for_input_event.wait()
-    
-    # Отправка завершающих команд
-    sleep(10)
+    sleep(2)
     end_commands = ["otkl_biab", "otkl_atm_biab_kpa", "autonomous_mode"]
     for command_name in end_commands:
         if stop_thread.is_set():
@@ -171,6 +146,7 @@ def send_commands_thread(sock, commands):
         cod_ku = command_details['cod_ku']
         command = pk.Short_Comanda_KU(type_ku, cod_ku)
         sock.send(command.message())
+    
 
 def receive_messages(sock):
     '''Получение и расшифровка сообщений с сервера'''
@@ -221,7 +197,7 @@ def decode_packet(data):
 
         # Извлекаем текущее сообщение
         current_message = data[:message_length + 2]
-        data = data[message_length + 2:]  # Убираем прочитанную часть
+        data = data[message_length + 2:]  # Убираем обработанную часть
 
         try:
             # Чтение времени
@@ -237,33 +213,46 @@ def decode_packet(data):
             print(f"Пакет: {packet}")
 
             if packet == 1:  # Если Пакет = 1, расшифровываем квитанцию
+                #print("Расшифровка квитанции")
+                
                 # Чтение КодВозврата
                 kod_vozvrata, = unpack_from('<H', current_message, 12)
+                #print(f"КодВозврата: {kod_vozvrata}")
+
                 # Чтение КолПарам
                 kol_param, = unpack_from('<H', current_message, 14)
+               # print(f"Количество параметров: {kol_param}")
 
                 # Чтение ТекстПарам
                 param_data = current_message[16:]  # Срез данных для параметров
                 for _ in range(kol_param):
+                    # Считываем текст параметра
+                    # Строка заканчивается нулевым байтом (STRING0)
                     null_index = param_data.find(b'\x00')
-                    if null_index == -1:
+                    if null_index == -1:  # Не найден нулевой байт, значит ошибка
+                        print("Ошибка: Не найден нулевой байт в данных параметра!")
                         break
+                    
                     text_param = param_data[:null_index].decode('cp1251', errors='replace')
+                    #print(f"ТекстПарам: {text_param}")
                     param_data = param_data[null_index + 1:]  # Убираем прочитанный параметр
             else:
                 # Чтение количества параметров
                 kol_param, = unpack_from('<H', current_message, 12)
+                #print(f"Количество параметров: {kol_param}")
 
                 # Обработка других параметров
                 param_data = current_message[14:]  # Срез данных для параметров
                 for _ in range(kol_param):
-                    if len(param_data) < 5:
+                    if len(param_data) < 5:  # Минимум 5 байт на параметр (тип, номер, длина)
+                        print("Ошибка: Данные параметров выходят за пределы сообщения!")
                         break
 
                     # Чтение ТипАТМ, Номер параметра и Длины
                     type_atm, param_number, param_length = unpack_from('<HHB', param_data)
                     param_data = param_data[5:]  # Убираем прочитанные 5 байт
                     if len(param_data) < param_length:
+                        print("Ошибка: Недостаточно данных для значения параметра!")
                         break
                     if type_atm == 20:
                         param_value, = unpack_from('<h', param_data)
@@ -278,10 +267,11 @@ def decode_packet(data):
         except Exception as e:
             print("Ошибка при обработке пакета:", e)               
 
-def listen_for_keypress(sock, commands):
+def listen_for_keypress(sock,commands):
     # Ожидание нажатия клавиши 'q'
     while not stop_thread.is_set():
         if is_pressed('q'):
+            
             print("Key 'q' pressed, stopping the command cycle")
             
             stop_commands = ["otkl_biab", "otkl_atm_biab_kpa", "autonomous_mode"]
@@ -300,20 +290,14 @@ def client_thread(host, port, commands):
             send_thread = threading.Thread(target=send_commands_thread, args=(sock, commands))
             receive_thread = threading.Thread(target=receive_messages, args=(sock,))
             agilent_thread_instance = threading.Thread(target=agilent_thread)
-            input_thread = threading.Thread(target=wait_for_input)
-            keypress_thread = threading.Thread(target=listen_for_keypress, args=(sock, commands))
 
             send_thread.start()
             receive_thread.start()
             agilent_thread_instance.start()
-            input_thread.start()
-            keypress_thread.start()
 
             send_thread.join()
             receive_thread.join()
             agilent_thread_instance.join()
-            input_thread.join()
-            keypress_thread.join()
     except ConnectionError:
         print("Server connection failed!")
     finally:
@@ -321,7 +305,7 @@ def client_thread(host, port, commands):
         agilent_stop_event.set()
 
 if __name__ == "__main__":
-    HOST, PORT = "192.168.1.231", 10001
+    HOST, PORT = "192.168.0.231", 10001
 
     # Загрузка команд из JSON-файла
     with open('command_biab200.json', 'r', encoding='utf-8') as file:
