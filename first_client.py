@@ -31,8 +31,14 @@ except serial.SerialException as e:
 def settings_Agilent():
     print("-------------------------------")
     ser_a.write(b'SYST:REM\r\n')  # Включить дистанционное управление
-    sleep(1)
+    sleep(0.1)
     ser_a.write(b'CONF:FRES\r\n')  # Включить 4-проводной режим измерения
+    sleep(0.1)
+    ser_a.write(b'FRES:NPLC 1\r\n')
+    sleep(0.1)
+    ser_a.write(b'SAMP:COUN 1\r\n') 
+    sleep(0.1)
+    ser_a.write(b'TRIG:SOUR IMM\r\n')
     print("-------------------------------")
 
 def Agilent_value():
@@ -40,7 +46,7 @@ def Agilent_value():
     try:
         with agilent_lock:
             ser_a.write(b'INITiate:IMMediate\n')
-            sleep(5)  # Ожидание завершения измерения
+            sleep(0.5)  # Ожидание завершения измерения
             ser_a.write(b'FETCH?\r\n')
             serialString_a = ser_a.readline().decode("ASCII").rstrip()
             if 'E' in serialString_a:
