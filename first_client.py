@@ -5,6 +5,7 @@ import json_open
 import csv
 import queue
 import json
+from os import path
 from time import sleep
 from struct import pack, unpack_from, error
 import threading
@@ -21,6 +22,7 @@ ustavka_lock = threading.Lock()  # Для безопасного доступа 
 wait_for_input_event = threading.Event()
 agilent_lock = threading.Lock()  # Блокировка для синхронизации доступа к Agilent
 next_idt_event = threading.Event()
+start_idt = 0 
 
 
 Address, COMport_PH, COMport_calibrator, COMport_Agilent = json_open.json_address_modbus()
@@ -85,7 +87,31 @@ def write_to_csv(current_IDT, current_ustavka_IDT, param_value, agilent_value):
         writer = csv.writer(file)
         writer.writerow([current_IDT, current_ustavka_IDT, param_value, agilent_value, fault, status])
         print(f"Текущий IDT:{current_IDT} Уставка:{current_ustavka_IDT} Сопротивление:{param_value} Agilent:{agilent_value} Погрешность:{fault} Статус:{status}")
-    
+
+def clean_csv_for_idt(start_idt):
+    file_lable = "БИАБ-200ЛИ"
+    file_number = "01"
+    file_name = f"{get_current_date_str()}{file_lable}_{file_number}.csv"
+
+    if not path.exists(file_name):
+        return  # Файла ещё нет — ничего не делаем
+
+    rows_to_keep = []
+    with open(file_name, mode='r', newline='') as file:
+        reader = csv.reader(file)
+        for row in reader:
+            if not row:
+                continue  # Пропускаем пустые строки
+            try:
+                row_idt = int(row[0])
+                if row_idt != start_idt:
+                    rows_to_keep.append(row)
+            except (IndexError, ValueError):
+                rows_to_keep.append(row)  # Если не число — оставляем на всякий случай
+
+    with open(file_name, mode='w', newline='') as file:
+        writer = csv.writer(file)
+        writer.writerows(rows_to_keep)    
 
 
 def wait_for_input():
@@ -101,7 +127,7 @@ def wait_for_input():
 
 
 
-def send_commands_thread(sock, commands):
+def send_commands_thread(sock, commands, start_idt):
     # Начальные команды
     start_commands = ["complex_mode", "vkl_atm_biab", "vkl_biab"]
     for command_name in start_commands:
@@ -109,7 +135,7 @@ def send_commands_thread(sock, commands):
         command = pk.Short_Comanda_KU(command_details['type_ku'], command_details['cod_ku'])
         sock.send(command.message())
     
-    for current_IDT in range(0, 11):
+    for current_IDT in range(start_idt, 11):
         
         
         for current_ustavka_IDT in range(990, 1205, 5):
@@ -287,7 +313,7 @@ def client_thread(host, port, commands):
     try:
         settings_Agilent()  # Инициализация Agilent один раз
         with socket.create_connection((host, port)) as sock:
-            send_thread = threading.Thread(target=send_commands_thread, args=(sock, commands))
+            send_thread = threading.Thread(target=send_commands_thread, args=(sock, commands, start_idt))
             receive_thread = threading.Thread(target=receive_messages, args=(sock,))
             input_thread = threading.Thread(target=wait_for_input)
 
@@ -310,6 +336,19 @@ if __name__ == "__main__":
     with open('command_biab200.json', 'r', encoding='utf-8') as file:
         commands = json.load(file)
     param_value_queue = queue.Queue()
+    
+    #Вобор стартового ИДТ
+    start_idt = 0
+    user_input = input("Введите начальный IDT (0–11), по умолчанию 0: ").strip()
+    if user_input.isdigit():
+        val = int(user_input)
+        if 0 <= val <= 11:
+            start_idt = val
+        else:
+            print("Неверное значение. Будет использован IDT = 0.")
+    else:
+        print("IDT не выбран. Будет использован IDT = 0.")
+    clean_csv_for_idt(start_idt)
 
     # Запуск клиента в отдельном потоке
     client_thread_thread = threading.Thread(target=client_thread, args=(HOST, PORT, commands))
