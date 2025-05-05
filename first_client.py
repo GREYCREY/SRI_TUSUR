@@ -19,6 +19,8 @@ ustavka_response = {}  # {уставка: (Event, значение)}
 ustavka_lock = threading.Lock()  # Для безопасного доступа из разных потоков
 wait_for_input_event = threading.Event()
 agilent_lock = threading.Lock()  # Блокировка для синхронизации доступа к Agilent
+next_idt_event = threading.Event()
+
 
 Address, COMport_PH, COMport_calibrator, COMport_Agilent = json_open.json_address_modbus()
 try:
@@ -80,11 +82,16 @@ def write_to_csv(current_IDT, current_ustavka_IDT, param_value, agilent_value, f
 
 
 def wait_for_input():
-    """Ожидание нажатия Enter после смены ИДТ"""
+    """Ожидание сигнала и затем — нажатия Enter от пользователя"""
     while not stop_thread.is_set():
+        next_idt_event.wait()  # ждем, пока send_commands_thread скажет, что пора
+        if stop_thread.is_set():
+            break
         input("Установите мультиметр на следующий ИДТ и нажмите Enter...")
         wait_for_input_event.set()
         wait_for_input_event.clear()
+        next_idt_event.clear()  # готов к следующему сигналу
+
 
 
 def send_commands_thread(sock, commands):
@@ -122,6 +129,7 @@ def send_commands_thread(sock, commands):
             if param_value is not None and agilent_val is not None:
                 write_to_csv(current_IDT, current_ustavka_IDT, param_value, agilent_val)
                   # Задержка 2 секунды перед следующей уставкой
+        next_idt_event.set() # сообщаем, что пора вводить
         wait_for_input_event.wait()  # Ожидание подтверждения смены ИДТ
         wait_for_input_event.clear()
     # Завершающие команды
