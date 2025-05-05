@@ -12,6 +12,7 @@ from keyboard import is_pressed
 import packet as pk
 from datetime import datetime, timedelta
 
+
 # Глобальная переменная для остановки цикла
 stop_thread = threading.Event()
 param_value_queue = queue.Queue()
@@ -71,9 +72,15 @@ def mess(data, t_time):
     '''Create message'''
     return pack('<H', len(data)) + pack('<Q', int(t_time * 1000)) + data
 
-def write_to_csv(current_IDT, current_ustavka_IDT, param_value, agilent_value, file_name='output.csv'):
+def get_current_date_str():
+    return datetime.now().strftime("%Y-%m-%d_")
+
+def write_to_csv(current_IDT, current_ustavka_IDT, param_value, agilent_value):
     fault = abs(current_ustavka_IDT - (- agilent_value ))
     status = 'OK' if fault <= 0.1 else 'НеОК'
+    file_lable = "БИАБ-200ЛИ"
+    file_number = "01"
+    file_name=f"{get_current_date_str()}{file_lable}_{file_number}.csv"
     with open(file_name, mode='a', newline='') as file:
         writer = csv.writer(file)
         writer.writerow([current_IDT, current_ustavka_IDT, param_value, agilent_value, fault, status])
