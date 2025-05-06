@@ -5,12 +5,14 @@ import json_open
 import csv
 import queue
 import json
+from os import path
 from time import sleep
 from struct import pack, unpack_from, error
 import threading
 from keyboard import is_pressed
 import packet as pk
 from datetime import datetime, timedelta
+
 
 # Глобальная переменная для остановки цикла
 stop_thread = threading.Event()
@@ -19,6 +21,9 @@ ustavka_response = {}  # {уставка: (Event, значение)}
 ustavka_lock = threading.Lock()  # Для безопасного доступа из разных потоков
 wait_for_input_event = threading.Event()
 agilent_lock = threading.Lock()  # Блокировка для синхронизации доступа к Agilent
+next_idt_event = threading.Event()
+start_idt = 0 
+
 
 Address, COMport_PH, COMport_calibrator, COMport_Agilent = json_open.json_address_modbus()
 try:
@@ -69,25 +74,60 @@ def mess(data, t_time):
     '''Create message'''
     return pack('<H', len(data)) + pack('<Q', int(t_time * 1000)) + data
 
-def write_to_csv(current_IDT, current_ustavka_IDT, param_value, agilent_value, file_name='output.csv'):
-    fault = abs((current_ustavka_IDT/10) - agilent_value )
+def get_current_date_str():
+    return datetime.now().strftime("%Y-%m-%d_")
+
+def write_to_csv(current_IDT, current_ustavka_IDT, param_value, agilent_value):
+    fault = abs(current_ustavka_IDT - (- agilent_value ))
     status = 'OK' if fault <= 0.1 else 'НеОК'
+    file_lable = "БИАБ-200ЛИ"
+    file_number = "01"
+    file_name=f"{get_current_date_str()}{file_lable}_{file_number}.csv"
     with open(file_name, mode='a', newline='') as file:
         writer = csv.writer(file)
-        writer.writerow([current_IDT, (current_ustavka_IDT/10), (param_value/10), agilent_value, fault, status])
-        print(f"Текущий IDT:{current_IDT} Уставка:{(current_ustavka_IDT/10)} Сопротивление:{(param_value/10)} Agilent:{agilent_value} Погрешность:{fault} Статус:{status}")
-    
+        writer.writerow([current_IDT, current_ustavka_IDT, param_value, agilent_value, fault, status])
+        print(f"Текущий IDT:{current_IDT} Уставка:{current_ustavka_IDT} Сопротивление:{param_value} Agilent:{agilent_value} Погрешность:{fault} Статус:{status}")
+
+def clean_csv_for_idt(start_idt):
+    file_lable = "БИАБ-200ЛИ"
+    file_number = "01"
+    file_name = f"{get_current_date_str()}{file_lable}_{file_number}.csv"
+
+    if not path.exists(file_name):
+        return  # Файла ещё нет — ничего не делаем
+
+    rows_to_keep = []
+    with open(file_name, mode='r', newline='') as file:
+        reader = csv.reader(file)
+        for row in reader:
+            if not row:
+                continue  # Пропускаем пустые строки
+            try:
+                row_idt = int(row[0])
+                if row_idt != start_idt:
+                    rows_to_keep.append(row)
+            except (IndexError, ValueError):
+                rows_to_keep.append(row)  # Если не число — оставляем на всякий случай
+
+    with open(file_name, mode='w', newline='') as file:
+        writer = csv.writer(file)
+        writer.writerows(rows_to_keep)    
 
 
 def wait_for_input():
-    """Ожидание нажатия Enter после смены ИДТ"""
+    """Ожидание сигнала и затем — нажатия Enter от пользователя"""
     while not stop_thread.is_set():
+        next_idt_event.wait()  # ждем, пока send_commands_thread скажет, что пора
+        if stop_thread.is_set():
+            break
         input("Установите мультиметр на следующий ИДТ и нажмите Enter...")
         wait_for_input_event.set()
         wait_for_input_event.clear()
+        next_idt_event.clear()  # готов к следующему сигналу
 
 
-def send_commands_thread(sock, commands):
+
+def send_commands_thread(sock, commands, start_idt):
     # Начальные команды
     start_commands = ["complex_mode", "vkl_atm_biab", "vkl_biab"]
     for command_name in start_commands:
@@ -95,7 +135,7 @@ def send_commands_thread(sock, commands):
         command = pk.Short_Comanda_KU(command_details['type_ku'], command_details['cod_ku'])
         sock.send(command.message())
     
-    for current_IDT in range(0, 11):
+    for current_IDT in range(start_idt, 11):
         
         
         for current_ustavka_IDT in range(990, 1205, 5):
@@ -122,6 +162,7 @@ def send_commands_thread(sock, commands):
             if param_value is not None and agilent_val is not None:
                 write_to_csv(current_IDT, current_ustavka_IDT, param_value, agilent_val)
                   # Задержка 2 секунды перед следующей уставкой
+        next_idt_event.set() # сообщаем, что пора вводить
         wait_for_input_event.wait()  # Ожидание подтверждения смены ИДТ
         wait_for_input_event.clear()
     # Завершающие команды
@@ -272,7 +313,7 @@ def client_thread(host, port, commands):
     try:
         settings_Agilent()  # Инициализация Agilent один раз
         with socket.create_connection((host, port)) as sock:
-            send_thread = threading.Thread(target=send_commands_thread, args=(sock, commands))
+            send_thread = threading.Thread(target=send_commands_thread, args=(sock, commands, start_idt))
             receive_thread = threading.Thread(target=receive_messages, args=(sock,))
             input_thread = threading.Thread(target=wait_for_input)
 
@@ -295,6 +336,19 @@ if __name__ == "__main__":
     with open('command_biab200.json', 'r', encoding='utf-8') as file:
         commands = json.load(file)
     param_value_queue = queue.Queue()
+    
+    #Вобор стартового ИДТ
+    start_idt = 0
+    user_input = input("Введите начальный IDT (0–11), по умолчанию 0: ").strip()
+    if user_input.isdigit():
+        val = int(user_input)
+        if 0 <= val <= 11:
+            start_idt = val
+        else:
+            print("Неверное значение. Будет использован IDT = 0.")
+    else:
+        print("IDT не выбран. Будет использован IDT = 0.")
+    clean_csv_for_idt(start_idt)
 
     # Запуск клиента в отдельном потоке
     client_thread_thread = threading.Thread(target=client_thread, args=(HOST, PORT, commands))
