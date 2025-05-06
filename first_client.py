@@ -70,12 +70,12 @@ def mess(data, t_time):
     return pack('<H', len(data)) + pack('<Q', int(t_time * 1000)) + data
 
 def write_to_csv(current_IDT, current_ustavka_IDT, param_value, agilent_value, file_name='output.csv'):
-    fault = abs(current_ustavka_IDT - (- agilent_value ))
+    fault = abs((current_ustavka_IDT/10) - agilent_value )
     status = 'OK' if fault <= 0.1 else 'НеОК'
     with open(file_name, mode='a', newline='') as file:
         writer = csv.writer(file)
-        writer.writerow([current_IDT, current_ustavka_IDT, param_value, agilent_value, fault, status])
-        print(f"Текущий IDT:{current_IDT} Уставка:{current_ustavka_IDT} Сопротивление:{param_value} Agilent:{agilent_value} Погрешность:{fault} Статус:{status}")
+        writer.writerow([current_IDT, (current_ustavka_IDT/10), (param_value/10), agilent_value, fault, status])
+        print(f"Текущий IDT:{current_IDT} Уставка:{(current_ustavka_IDT/10)} Сопротивление:{(param_value/10)} Agilent:{agilent_value} Погрешность:{fault} Статус:{status}")
     
 
 
@@ -289,7 +289,7 @@ def client_thread(host, port, commands):
         stop_thread.set()
 
 if __name__ == "__main__":
-    HOST, PORT = "192.168.0.231", 10001
+    HOST, PORT = "192.168.1.231", 10001
 
     # Загрузка команд из JSON-файла
     with open('command_biab200.json', 'r', encoding='utf-8') as file:
