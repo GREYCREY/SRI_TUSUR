@@ -78,15 +78,15 @@ def get_current_date_str():
     return datetime.now().strftime("%Y-%m-%d_")
 
 def write_to_csv(current_IDT, current_ustavka_IDT, param_value, agilent_value):
-    fault = abs(current_ustavka_IDT - (- agilent_value ))
+    fault = abs((current_ustavka_IDT/10) - agilent_value)
     status = 'OK' if fault <= 0.1 else 'НеОК'
     file_lable = "БИАБ-200ЛИ"
     file_number = "01"
     file_name=f"{get_current_date_str()}{file_lable}_{file_number}.csv"
     with open(file_name, mode='a', newline='') as file:
         writer = csv.writer(file)
-        writer.writerow([current_IDT, current_ustavka_IDT, param_value, agilent_value, fault, status])
-        print(f"Текущий IDT:{current_IDT} Уставка:{current_ustavka_IDT} Сопротивление:{param_value} Agilent:{agilent_value} Погрешность:{fault} Статус:{status}")
+        writer.writerow([current_IDT, current_ustavka_IDT/10, param_value/10, agilent_value, fault, status])
+        print(f"Текущий IDT:{current_IDT} Уставка:{current_ustavka_IDT/10} Сопротивление:{param_value/10} Agilent:{agilent_value} Погрешность:{fault} Статус:{status}")
 
 def clean_csv_for_idt(start_idt):
     file_lable = "БИАБ-200ЛИ"
