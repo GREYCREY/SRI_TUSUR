@@ -128,49 +128,44 @@ def wait_for_input():
 
 
 def send_commands_thread(sock, commands, start_idt):
-    # Начальные команды
-    start_commands = ["complex_mode", "vkl_atm_biab", "vkl_biab"]
-    for command_name in start_commands:
-        command_details = commands['short_comm'][command_name]
-        command = pk.Short_Comanda_KU(command_details['type_ku'], command_details['cod_ku'])
-        sock.send(command.message())
-    
+    # Отправляем стартовые команды
+    for name in ["complex_mode", "vkl_atm_biab", "vkl_biab"]:
+        cd = commands['short_comm'][name]
+        sock.send(pk.Short_Comanda_KU(cd['type_ku'], cd['cod_ku']).message())
+
+    # Основной цикл по IDT и уставкам
     for current_IDT in range(start_idt, 11):
-        
-        
-        for current_ustavka_IDT in range(990, 1205, 5):
+        for ust in range(990, 1205, 5):
             with ustavka_lock:
-                event = threading.Event()
-                ustavka_response[current_ustavka_IDT] = (event, None)
+                ev = threading.Event()
+                ustavka_response[ust] = (ev, None)
 
             # Отправка уставки
-            ustavka_packet = pk.Short_Comanda_KU(4, current_IDT, 1).set_ustavka(current_ustavka_IDT, 4)
-            sock.send(ustavka_packet)
-            print(f"Отправлена уставка: {current_ustavka_IDT}")
+            pkt = pk.Short_Comanda_KU(4, current_IDT, 1).set_ustavka(ust, 4)
+            sock.send(pkt)
 
-            # Ожидание подтверждения
-            if not event.wait(timeout=10):
-                print(f"Таймаут подтверждения для уставки {current_ustavka_IDT}")
-                continue
+            # Ожидание ответа (квитанции или ATM)
+            if ev.wait(timeout=10):
+                _, param = ustavka_response.pop(ust)
+            else:
+                param = None
 
-            # Получение значения параметра и измерения Agilent
-            with ustavka_lock:
-                _, param_value = ustavka_response.pop(current_ustavka_IDT, (None, None))
-            
-            agilent_val = Agilent_value()  # Синхронный запрос к Agilent
-            
-            if param_value is not None and agilent_val is not None:
-                write_to_csv(current_IDT, current_ustavka_IDT, param_value, agilent_val)
-                  # Задержка 2 секунды перед следующей уставкой
-        next_idt_event.set() # сообщаем, что пора вводить
-        wait_for_input_event.wait()  # Ожидание подтверждения смены ИДТ
+            # Измерение Agilent
+            ag_val = Agilent_value()
+
+            # Всегда записываем в CSV, даже при ошибках
+            write_to_csv(current_IDT, ust, param, ag_val)
+
+        # Переход к следующему IDT
+        next_idt_event.set()
+        wait_for_input_event.wait()
         wait_for_input_event.clear()
-    # Завершающие команды
-    end_commands = ["otkl_biab", "otkl_atm_biab_kpa", "autonomous_mode"]
-    for command_name in end_commands:
-        command_details = commands['short_comm'][command_name]
-        command = pk.Short_Comanda_KU(command_details['type_ku'], command_details['cod_ku'])
-        sock.send(command.message())
+
+    # Отправляем завершающие команды
+    for name in ["otkl_biab", "otkl_atm_biab_kpa", "autonomous_mode"]:
+        cd = commands['short_comm'][name]
+        sock.send(pk.Short_Comanda_KU(cd['type_ku'], cd['cod_ku']).message())
+
         
 
 def receive_messages(sock):
@@ -209,88 +204,52 @@ def receive_messages(sock):
             break
 
 def decode_packet(data):
-    previous_param_value = None  # Переменная для хранения предыдущего значения параметра
     
-    while len(data) > 2:  # Минимум 2 байта для длины сообщения
-        # Чтение длины сообщения
-        message_length, = unpack_from('<H', data)
-        #print(f"Длина сообщения: {message_length}")
-
-        if len(data) < message_length + 2:  # Проверяем, хватает ли данных для сообщения
-            #print("Ошибка: Сообщение выходит за пределы данных!")
+    buffer = data
+    while len(buffer) >= 2:
+        length, = unpack_from('<H', buffer)
+        if len(buffer) < 2 + length:
             break
+        msg = buffer[:2+length]
+        buffer = buffer[2+length:]
 
-        # Извлекаем текущее сообщение
-        current_message = data[:message_length + 2]
-        data = data[message_length + 2:]  # Убираем обработанную часть
+        # Считываем временную метку и идентификатор пакета
+        timestamp, = unpack_from('<Q', msg, 2)
+        packet_id, = unpack_from('<H', msg, 10)
 
-        try:
-            # Чтение времени
-            timestamp, = unpack_from('<Q', current_message, 2)
-            # Преобразуем 100-наносекундные интервалы с 1 января 1601 года в стандартное время
-            epoch_start = datetime(1601, 1, 1)
-            time_in_seconds = timestamp / 1e7  # 100-наносекундные интервалы -> секунды
-            decoded_time = epoch_start + timedelta(seconds=time_in_seconds)
-            #print(f"Время: {decoded_time}")
+        if packet_id == 1:
+            # Квитанция об установке
+            kod_vozvrata, = unpack_from('<H', msg, 12)
+            kol, = unpack_from('<H', msg, 14)
+            if kod_vozvrata == 0:
+                # Читаем текстовый параметр — это уставка
+                text_bytes = msg[16:]
+                null_idx = text_bytes.find(b'\x00')
+                if null_idx != -1:
+                    val = int(text_bytes[:null_idx].decode('cp1251', errors='ignore'))
+                    with ustavka_lock:
+                        if val in ustavka_response:
+                            ev, _ = ustavka_response[val]
+                            ustavka_response[val] = (ev, val)
+                            ev.set()
 
-            # Чтение пакета
-            packet, = unpack_from('<H', current_message, 10)
-           # print(f"Пакет: {packet}")
-
-            if packet == 1:  # Если Пакет = 1, расшифровываем квитанцию
-                #print("Расшифровка квитанции")
-                
-                # Чтение КодВозврата
-                kod_vozvrata, = unpack_from('<H', current_message, 12)
-                #print(f"КодВозврата: {kod_vozvrata}")
-
-                # Чтение КолПарам
-                kol_param, = unpack_from('<H', current_message, 14)
-               # print(f"Количество параметров: {kol_param}")
-
-                # Чтение ТекстПарам
-                param_data = current_message[16:]  # Срез данных для параметров
-                for _ in range(kol_param):
-                    # Считываем текст параметра
-                    # Строка заканчивается нулевым байтом (STRING0)
-                    null_index = param_data.find(b'\x00')
-                    if null_index == -1:  # Не найден нулевой байт, значит ошибка
-                        #print("Ошибка: Не найден нулевой байт в данных параметра!")
-                        break
-                    
-                    text_param = param_data[:null_index].decode('cp1251', errors='replace')
-                    #print(f"ТекстПарам: {text_param}")
-                    param_data = param_data[null_index + 1:]  # Убираем прочитанный параметр
-            else:
-                # Чтение количества параметров
-                kol_param, = unpack_from('<H', current_message, 12)
-                #print(f"Количество параметров: {kol_param}")
-
-                # Обработка других параметров
-                param_data = current_message[14:]  # Срез данных для параметров
-                for _ in range(kol_param):
-                    if len(param_data) < 5:  # Минимум 5 байт на параметр (тип, номер, длина)
-                        #print("Ошибка: Данные параметров выходят за пределы сообщения!")
-                        break
-
-                    # Чтение ТипАТМ, Номер параметра и Длины
-                    type_atm, param_number, param_length = unpack_from('<HHB', param_data)
-                    param_data = param_data[5:]  # Убираем прочитанные 5 байт
-                    if len(param_data) < param_length:
-                        #print("Ошибка: Недостаточно данных для значения параметра!")
-                        break
-                    if type_atm == 20:
-                        param_value, = unpack_from('<h', param_data)
-                        param_value = round(param_value, 3)
-
-                        with ustavka_lock:
-                            if param_value in ustavka_response:
-                                event, _ = ustavka_response[param_value]
-                                ustavka_response[param_value] = (event, param_value)
-                                event.set()  # Разблокируем `send_commands_thread`
-
-        except Exception as e:
-            print("Ошибка при обработке пакета:", e)               
+        else:
+            # Прочие пакеты (ATM и др.)
+            kol, = unpack_from('<H', msg, 12)
+            offset = 14
+            for _ in range(kol):
+                type_atm, pnum, plen = unpack_from('<HHB', msg, offset)
+                offset += 5
+                if type_atm == 20 and plen == 2:
+                    raw, = unpack_from('<h', msg, offset)
+                    val = round(raw, 3)
+                    with ustavka_lock:
+                        if val in ustavka_response:
+                            ev, _ = ustavka_response[val]
+                            ustavka_response[val] = (ev, val)
+                            ev.set()
+                offset += plen
+              
 
 def listen_for_keypress(sock,commands):
     # Ожидание нажатия клавиши 'q'
