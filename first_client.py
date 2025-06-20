@@ -134,7 +134,7 @@ def send_commands_thread(sock, commands, start_idt):
         sock.send(pk.Short_Comanda_KU(cd['type_ku'], cd['cod_ku']).message())
 
     # Основной цикл по IDT и уставкам
-    for current_IDT in range(start_idt, 11):
+    for current_IDT in range(start_idt, 12):
         for ust in range(990, 1205, 5):
             with ustavka_lock:
                 ev = threading.Event()
@@ -298,9 +298,9 @@ if __name__ == "__main__":
     
     #Вобор стартового ИДТ
     start_idt = 0
-    user_input = input("Введите начальный IDT (0–11), по умолчанию 0: ").strip()
+    user_input = input("Введите начальный IDT (1–12), по умолчанию 1: ").strip()
     if user_input.isdigit():
-        val = int(user_input)
+        val = int(user_input) - 1
         if 0 <= val <= 11:
             start_idt = val
         else:
