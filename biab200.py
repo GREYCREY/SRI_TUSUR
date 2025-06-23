@@ -12,6 +12,10 @@ import threading
 from keyboard import is_pressed
 import packet as pk
 from datetime import datetime, timedelta
+try:
+    from UI import add_result_row, root
+except ImportError:
+    add_result_row = lambda *args, **kw: None
 
 
 # Глобальная переменная для остановки цикла
@@ -86,6 +90,10 @@ def write_to_csv(current_IDT, current_ustavka_IDT, param_value, agilent_value):
     with open(file_name, mode='a', newline='') as file:
         writer = csv.writer(file)
         writer.writerow([current_IDT, current_ustavka_IDT/10, param_value/10, agilent_value, fault, status])
+        today = datetime.now().strftime("%Y-%m-%d")
+        gui_values = ( current_IDT + 1, current_ustavka_IDT / 10,param_value / 10 if param_value is not None else None,agilent_value,
+                      fault,status, today)
+        root.after(0, add_result_row, gui_values)
         print(f"Текущий IDT:{current_IDT} Уставка:{current_ustavka_IDT/10} Сопротивление:{param_value/10} Agilent:{agilent_value} Погрешность:{fault} Статус:{status}")
 
 def clean_csv_for_idt(start_idt):
