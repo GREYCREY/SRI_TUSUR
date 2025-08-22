@@ -12,10 +12,7 @@ import threading
 from keyboard import is_pressed
 import packet as pk
 from datetime import datetime, timedelta
-try:
-    from UI import add_result_row, root
-except ImportError:
-    add_result_row = lambda *args, **kw: None
+
 
 
 # Глобальная переменная для остановки цикла
@@ -81,20 +78,68 @@ def mess(data, t_time):
 def get_current_date_str():
     return datetime.now().strftime("%Y-%m-%d_")
 
-def write_to_csv(current_IDT, current_ustavka_IDT, param_value, agilent_value):
-    fault = abs((current_ustavka_IDT/10) - agilent_value)
+def safe_callback(callback, values):
+    """
+    Безопасный вызов callback в главном потоке
+    """
+    try:
+        import tkinter as tk
+        # Получаем корневое окно, если оно существует
+        root = None
+        if hasattr(tk, '_default_root') and tk._default_root:
+            root = tk._default_root
+        else:
+            # Пытаемся найти существующее окно
+            for widget in tk._default_root.winfo_children() if hasattr(tk, '_default_root') and tk._default_root else []:
+                if isinstance(widget, tk.Tk):
+                    root = widget
+                    break
+        
+        if root:
+            root.after(0, lambda: callback(values))
+        else:
+            print("Не удалось найти корневое окно Tk для callback")
+    except Exception as e:
+        print(f"Ошибка при вызове callback: {e}")   
+
+def write_to_csv(current_IDT, current_ustavka_IDT, param_value, agilent_value, callback=None):
+    """
+    Запись результатов с возможностью callback в GUI
+    """
+    fault = abs((current_ustavka_IDT/10) - agilent_value) if agilent_value is not None else 0
     status = 'OK' if fault <= 0.1 else 'НеОК'
+    
+    # Запись в CSV файл
     file_lable = "БИАБ-200ЛИ"
     file_number = "01"
-    file_name=f"{get_current_date_str()}{file_lable}_{file_number}.csv"
-    with open(file_name, mode='a', newline='') as file:
+    file_name = f"{get_current_date_str()}{file_lable}_{file_number}.csv"
+    
+    with open(file_name, mode='a', newline='', encoding='utf-8') as file:
         writer = csv.writer(file)
-        writer.writerow([current_IDT, current_ustavka_IDT/10, param_value/10, agilent_value, fault, status])
-        today = datetime.now().strftime("%Y-%m-%d")
-        gui_values = ( current_IDT + 1, current_ustavka_IDT / 10,param_value / 10 if param_value is not None else None,agilent_value,
-                      fault,status, today)
-        root.after(0, add_result_row, gui_values)
-        print(f"Текущий IDT:{current_IDT} Уставка:{current_ustavka_IDT/10} Сопротивление:{param_value/10} Agilent:{agilent_value} Погрешность:{fault} Статус:{status}")
+        writer.writerow([
+            current_IDT + 1, 
+            current_ustavka_IDT / 10,
+            param_value / 10 if param_value is not None else None,
+            agilent_value,
+            fault,
+            status,
+            datetime.now().strftime("%Y-%m-%d")
+        ])
+    
+    # Вызов callback для обновления GUI
+    if callback:
+        gui_values = (
+            current_IDT + 1,
+            current_ustavka_IDT / 10,
+            param_value / 10 if param_value is not None else None,
+            agilent_value,
+            fault,
+            status,
+            datetime.now().strftime("%Y-%m-%d")
+        )
+        # Безопасный вызов callback в главном потоке
+        safe_callback(callback, gui_values)
+        
 
 def clean_csv_for_idt(start_idt):
     file_lable = "БИАБ-200ЛИ"
@@ -135,45 +180,64 @@ def wait_for_input():
 
 
 
-def send_commands_thread(sock, commands, start_idt):
-    # Отправляем стартовые команды
-    for name in ["complex_mode", "vkl_atm_biab", "vkl_biab"]:
-        cd = commands['short_comm'][name]
-        sock.send(pk.Short_Comanda_KU(cd['type_ku'], cd['cod_ku']).message())
+def send_commands_thread(sock, commands, start_idt, callback):
+    
+    try:
+        # Отправляем стартовые команды
+        for name in ["complex_mode", "vkl_atm_biab", "vkl_biab"]:
+            cd = commands['short_comm'][name]
+            sock.send(pk.Short_Comanda_KU(cd['type_ku'], cd['cod_ku']).message())
 
-    # Основной цикл по IDT и уставкам
-    for current_IDT in range(start_idt, 12):
-        for ust in range(990, 1205, 5):
-            with ustavka_lock:
-                ev = threading.Event()
-                ustavka_response[ust] = (ev, None)
+        # Основной цикл по IDT и уставкам
+        for current_IDT in range(start_idt, 12):
+            for ust in range(990, 1205, 5):
+                with ustavka_lock:
+                    ev = threading.Event()
+                    ustavka_response[ust] = (ev, None)
 
-            # Отправка уставки
-            pkt = pk.Short_Comanda_KU(4, current_IDT, 1).set_ustavka(ust, 4)
-            sock.send(pkt)
+                # Отправка уставки
+                pkt = pk.Short_Comanda_KU(4, current_IDT, 1).set_ustavka(ust, 4)
+                sock.send(pkt)
 
-            # Ожидание ответа (квитанции или ATM)
-            if ev.wait(timeout=10):
-                _, param = ustavka_response.pop(ust)
-            else:
-                param = None
+                # Ожидание ответа (квитанции или ATM)
+                if ev.wait(timeout=10):
+                    _, param = ustavka_response.pop(ust)
+                else:
+                    param = None
+                    print(f"Таймаут ожидания ответа для уставки {ust}")
 
-            # Измерение Agilent
-            ag_val = Agilent_value()
+                # Измерение Agilent
+                ag_val = Agilent_value()
 
-            # Всегда записываем в CSV, даже при ошибках
-            write_to_csv(current_IDT, ust, param, ag_val)
+                # Записываем в CSV и обновляем GUI через callback
+                write_to_csv(current_IDT, ust, param, ag_val, callback)
 
-        # Переход к следующему IDT
-        next_idt_event.set()
-        wait_for_input_event.wait()
-        wait_for_input_event.clear()
+            # Переход к следующему IDT
+            next_idt_event.set()
+            wait_for_input_event.wait()
+            wait_for_input_event.clear()
 
-    # Отправляем завершающие команды
-    for name in ["otkl_biab", "otkl_atm_biab_kpa", "autonomous_mode"]:
-        cd = commands['short_comm'][name]
-        sock.send(pk.Short_Comanda_KU(cd['type_ku'], cd['cod_ku']).message())
-
+        # Отправляем завершающие команды
+        for name in ["otkl_biab", "otkl_atm_biab_kpa", "autonomous_mode"]:
+            cd = commands['short_comm'][name]
+            sock.send(pk.Short_Comanda_KU(cd['type_ku'], cd['cod_ku']).message())
+            
+    except Exception as e:
+        print(f"Ошибка в потоке отправки команд: {e}")
+        # Передаем информацию об ошибке через callback
+        if callback:
+            error_values = (
+                "Ошибка", 
+                f"{e}", 
+                "", 
+                "", 
+                "", 
+                "Ошибка", 
+                datetime.now().strftime("%Y-%m-%d")
+            )
+            # Безопасный вызов callback в главном потоке
+            safe_callback(callback, error_values)
+        
         
 
 def receive_messages(sock):
@@ -276,13 +340,14 @@ def listen_for_keypress(sock,commands):
                 sock.send(command.message())
             break
 
-def client_thread(host, port, commands):
+def client_thread(host, port, commands, callback= None):
     try:
         settings_Agilent()  # Инициализация Agilent один раз
         with socket.create_connection((host, port)) as sock:
-            send_thread = threading.Thread(target=send_commands_thread, args=(sock, commands, start_idt))
+            send_thread = threading.Thread(target=send_commands_thread, args=(sock, commands, start_idt, callback))
             receive_thread = threading.Thread(target=receive_messages, args=(sock,))
             input_thread = threading.Thread(target=wait_for_input)
+            
 
             send_thread.start()
             receive_thread.start()

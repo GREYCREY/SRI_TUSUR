@@ -33,7 +33,7 @@ def start_measurement():
     # Запускаем клиент в потоке
     t = threading.Thread(
         target=logic.client_thread,
-        args=(HOST, PORT, commands),
+        args=(HOST, PORT, commands, add_result_row),
         daemon=True
     )
     t.start()

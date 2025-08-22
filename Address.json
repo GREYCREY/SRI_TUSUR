@@ -2,7 +2,7 @@
 "Modbus":{
   "Address": [47, 54, 58],
   "COMport_PH": "COM24",
-  "COMprot_calibrator": "COM3",
-  "COMport_Agilent": "COM6"
+  "COMprot_calibrator": "COM6",
+  "COMport_Agilent": "COM3"
 }
 }
