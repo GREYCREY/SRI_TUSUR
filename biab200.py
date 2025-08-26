@@ -120,8 +120,8 @@ def write_to_csv(current_IDT, current_ustavka_IDT, param_value, agilent_value, c
             current_IDT + 1, 
             current_ustavka_IDT / 10,
             param_value / 10 if param_value is not None else None,
-            agilent_value,
-            fault,
+            round(agilent_value, 3),
+            round(fault, 3),
             status,
             datetime.now().strftime("%Y-%m-%d")
         ])
