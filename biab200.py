@@ -107,7 +107,7 @@ def write_to_csv(current_IDT, current_ustavka_IDT, param_value, agilent_value, c
     Запись результатов с возможностью callback в GUI
     """
     fault = abs((current_ustavka_IDT/10) - agilent_value) if agilent_value is not None else 0
-    status = 'OK' if fault <= 0.1 else 'НеОК'
+    status = '' if fault <= 0.1 else 'Не норма'
     
     # Запись в CSV файл
     file_lable = "БИАБ-200ЛИ"
