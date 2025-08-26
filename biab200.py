@@ -173,7 +173,6 @@ def wait_for_input():
         next_idt_event.wait()  # ждем, пока send_commands_thread скажет, что пора
         if stop_thread.is_set():
             break
-        input("Установите мультиметр на следующий ИДТ и нажмите Enter...")
         wait_for_input_event.set()
         wait_for_input_event.clear()
         next_idt_event.clear()  # готов к следующему сигналу

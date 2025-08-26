@@ -54,8 +54,10 @@ biab_entry = tk.Entry(frame, width=5); biab_entry.insert(0, "01"); biab_entry.pa
 tk.Label(frame, text="Начальный IDT:").pack(side="left")
 idt_entry = tk.Entry(frame, width=5); idt_entry.insert(0, "1"); idt_entry.pack(side="left", padx=5)
 tk.Button(frame, text="Старт", command=start_measurement).pack(side="left", padx=5)
+tk.Button(frame, text= "Продолжить ", command= logic.wait_for_input).pack(side="left", padx=5)
 tk.Button(frame, text="Стоп", command=stop_measurement).pack(side="left", padx=5)
 tk.Button(frame, text="Очистить", command=lambda: tree.delete(*tree.get_children())).pack(side="left", padx=5)
+
 
 status_label = tk.Label(root, text="Готово к запуску", bg="#eee", anchor="w")
 status_label.pack(fill="x", pady=5)
