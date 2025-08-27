@@ -132,8 +132,8 @@ def write_to_csv(current_IDT, current_ustavka_IDT, param_value, agilent_value, c
             current_IDT + 1,
             current_ustavka_IDT / 10,
             param_value / 10 if param_value is not None else None,
-            agilent_value,
-            fault,
+            round(agilent_value, 3),
+            round(fault, 3),
             status,
             datetime.now().strftime("%Y-%m-%d")
         )
@@ -173,6 +173,7 @@ def wait_for_input():
         next_idt_event.wait()  # ждем, пока send_commands_thread скажет, что пора
         if stop_thread.is_set():
             break
+        input("press entet")
         wait_for_input_event.set()
         wait_for_input_event.clear()
         next_idt_event.clear()  # готов к следующему сигналу
