@@ -4,15 +4,15 @@ import threading
 import json
 import biab200 as logic   
 
-HOST = "192.168.1.231"
+HOST = "169.254.59.150"
 PORT = 10001
 
 # Загружаем команды
-with open("command_biab200.json", encoding="utf-8") as f:
+with open("command_biab100.json", encoding="utf-8") as f:
     commands = json.load(f)
 
 root = tk.Tk()
-root.title("Измерение БИАБ-200ЛИ")
+root.title("Измерение БИАБ-100ЛИ")
 root.geometry("1000x650")
 
 # Функция старта

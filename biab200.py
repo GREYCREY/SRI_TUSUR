@@ -142,7 +142,7 @@ def write_to_csv(current_IDT, current_ustavka_IDT, param_value, agilent_value, c
         
 
 def clean_csv_for_idt(start_idt):
-    file_lable = "БИАБ-200ЛИ"
+    file_lable = "БИАБ-100ЛИ"
     file_number = "01"
     file_name = f"{get_current_date_str()}{file_lable}_{file_number}.csv"
 
@@ -190,13 +190,13 @@ def send_commands_thread(sock, commands, start_idt, callback):
 
         # Основной цикл по IDT и уставкам
         for current_IDT in range(start_idt, 12):
-            for ust in range(990, 1205, 5):
+            for ust in range(990, 1205, 1):
                 with ustavka_lock:
                     ev = threading.Event()
                     ustavka_response[ust] = (ev, None)
 
                 # Отправка уставки
-                pkt = pk.Short_Comanda_KU(4, current_IDT, 1).set_ustavka(ust, 4)
+                pkt = pk.Short_Comanda_KU(14, current_IDT, 1).set_ustavka(ust, 5)
                 sock.send(pkt)
 
                 # Ожидание ответа (квитанции или ATM)
@@ -362,10 +362,10 @@ def client_thread(host, port, commands, callback= None):
         stop_thread.set()
 
 if __name__ == "__main__":
-    HOST, PORT = "192.168.1.231", 10001
+    HOST, PORT = "169.254.59.150", 10001
 
     # Загрузка команд из JSON-файла
-    with open('command_biab200.json', 'r', encoding='utf-8') as file:
+    with open('command_biab100.json', 'r', encoding='utf-8') as file:
         commands = json.load(file)
     param_value_queue = queue.Queue()
     
