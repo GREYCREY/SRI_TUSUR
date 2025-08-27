@@ -223,7 +223,7 @@ def client_thread(host, port, commands):
 
 
 if __name__ == "__main__":
-    HOST, PORT = "192.168.1.150q", 10001
+    HOST, PORT = "169.254.59.150", 10001
 
     # Загрузка команд из JSON-файла
     with open('command_biab100.json', 'r') as file:
