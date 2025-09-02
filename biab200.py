@@ -167,17 +167,8 @@ def clean_csv_for_idt(start_idt):
         writer.writerows(rows_to_keep)    
 
 
-def wait_for_input():
-    """Ожидание сигнала и затем — нажатия Enter от пользователя"""
-    while not stop_thread.is_set():
-        next_idt_event.wait()  # ждем, пока send_commands_thread скажет, что пора
-        if stop_thread.is_set():
-            break
-        input("press entet")
-        wait_for_input_event.set()
-        wait_for_input_event.clear()
-        next_idt_event.clear()  # готов к следующему сигналу
 
+        
 
 
 def send_commands_thread(sock, commands, start_idt, callback):
@@ -215,7 +206,7 @@ def send_commands_thread(sock, commands, start_idt, callback):
             # Переход к следующему IDT
             next_idt_event.set()
             wait_for_input_event.wait()
-            wait_for_input_event.clear()
+            wait_for_input_event.clear()    
 
         # Отправляем завершающие команды
         for name in ["otkl_biab", "otkl_atm_biab_kpa", "autonomous_mode"]:
@@ -346,16 +337,14 @@ def client_thread(host, port, commands, callback= None):
         with socket.create_connection((host, port)) as sock:
             send_thread = threading.Thread(target=send_commands_thread, args=(sock, commands, start_idt, callback))
             receive_thread = threading.Thread(target=receive_messages, args=(sock,))
-            input_thread = threading.Thread(target=wait_for_input)
             
-
+            
             send_thread.start()
             receive_thread.start()
-            input_thread.start()
-
+            
             send_thread.join()
             receive_thread.join()
-            input_thread.join()
+            
     except ConnectionError:
         print("Ошибка подключения к серверу!")
     finally:

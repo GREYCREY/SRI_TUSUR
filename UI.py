@@ -47,6 +47,9 @@ def stop_measurement():
 def add_result_row(values):
     tree.insert("", "end", values=values)
 
+def continue_measurement():
+    logic.wait_for_input_event.set()
+    
 # Интерфейс
 frame = tk.Frame(root); frame.pack(pady=5)
 tk.Label(frame, text="Номер БИАБ:").pack(side="left")
@@ -55,7 +58,7 @@ tk.Label(frame, text="Начальный IDT:").pack(side="left")
 idt_entry = tk.Entry(frame, width=5); idt_entry.insert(0, "1"); idt_entry.pack(side="left", padx=5)
 tk.Button(frame, text="Старт", command=start_measurement).pack(side="left", padx=5)
 
-#tk.Button(frame, text= "Продолжить ", command= logic.wait_for_input).pack(side="left", padx=5)
+tk.Button(frame, text= "Продолжить ", command= continue_measurement).pack(side="left", padx=5)
 
 tk.Button(frame, text="Стоп", command=stop_measurement).pack(side="left", padx=5)
 tk.Button(frame, text="Очистить", command=lambda: tree.delete(*tree.get_children())).pack(side="left", padx=5)
