@@ -4,7 +4,7 @@ import threading
 import json
 import biab200 as logic   
 
-HOST = "192.168.1.231"
+HOST = "192.168.0.192"
 PORT = 10001
 
 # Загружаем команды

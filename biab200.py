@@ -196,7 +196,7 @@ def send_commands_thread(sock, commands, start_idt, callback):
                     ustavka_response[ust] = (ev, None)
 
                 # Отправка уставки
-                pkt = pk.Short_Comanda_KU(14, current_IDT, 1).set_ustavka(ust, 5)
+                pkt = pk.Short_Comanda_KU(14, current_IDT, 1).set_ustavka(ust, 4)
                 sock.send(pkt)
 
                 # Ожидание ответа (квитанции или ATM)
@@ -216,11 +216,12 @@ def send_commands_thread(sock, commands, start_idt, callback):
             next_idt_event.set()
             wait_for_input_event.wait()
             wait_for_input_event.clear()
-
+        """
         # Отправляем завершающие команды
         for name in ["otkl_biab", "otkl_atm_biab_kpa", "autonomous_mode"]:
             cd = commands['short_comm'][name]
             sock.send(pk.Short_Comanda_KU(cd['type_ku'], cd['cod_ku']).message())
+        """
             
     except Exception as e:
         print(f"Ошибка в потоке отправки команд: {e}")
@@ -362,7 +363,7 @@ def client_thread(host, port, commands, callback= None):
         stop_thread.set()
 
 if __name__ == "__main__":
-    HOST, PORT = "169.254.59.150", 10001
+    HOST, PORT = "192.168.0.192", 10001
 
     # Загрузка команд из JSON-файла
     with open('command_biab100.json', 'r', encoding='utf-8') as file:
