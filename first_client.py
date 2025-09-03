@@ -74,6 +74,7 @@ def receive_messages(sock):
                 buffer = buffer[2 + message_length:]  # Удаляем из буфера обработанные данные
 
                 # Декодируем сообщение с помощью функции decode_packet
+                
                 try:
                     decode_packet(message_data)
                 except Exception as e:
@@ -225,10 +226,10 @@ def client_thread(host, port, commands):
         stop_thread.set()
 
 if __name__ == "__main__":
-    HOST, PORT = "192.168.1.150q", 10001
+    HOST, PORT = "192.168.0.192", 10001
 
     # Загрузка команд из JSON-файла
-    with open('command_biab200.json', 'r') as file:
+    with open('command_biab200.json', 'r', encoding= "utf8") as file:
         commands = json.load(file)
 
     # Запуск клиента в отдельном потоке
