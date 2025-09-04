@@ -187,7 +187,7 @@ def send_commands_thread(sock, commands, start_idt, callback):
                     ustavka_response[ust] = (ev, None)
 
                 # Отправка уставки
-                pkt = pk.Short_Comanda_KU(4, current_IDT, 1).set_ustavka(ust, 4)
+                pkt = pk.Short_Comanda_KU(14, current_IDT, 1).set_ustavka(ust, 3)
                 sock.send(pkt)
 
                 # Ожидание ответа (квитанции или ATM)
@@ -282,11 +282,12 @@ def decode_packet(data):
 
         if packet_id == 1:
             # Квитанция об установке
-            kod_vozvrata, = unpack_from('<H', msg, 12)
-            kol, = unpack_from('<H', msg, 14)
+            kod_vozvrata, = unpack_from('<H', msg, 14)
+            kol, = unpack_from('<H', msg, 16)
+            print(kod_vozvrata)
             if kod_vozvrata == 0:
                 # Читаем текстовый параметр — это уставка
-                text_bytes = msg[16:]
+                text_bytes = msg[18:]
                 null_idx = text_bytes.find(b'\x00')
                 if null_idx != -1:
                     val = int(text_bytes[:null_idx].decode('cp1251', errors='ignore'))
@@ -351,7 +352,7 @@ def client_thread(host, port, commands, callback= None):
         stop_thread.set()
 
 if __name__ == "__main__":
-    HOST, PORT = "192.168.1.231", 10001
+    HOST, PORT = "192.168.0.192", 10001
 
     # Загрузка команд из JSON-файла
     with open('command_biab200.json', 'r', encoding='utf-8') as file:
