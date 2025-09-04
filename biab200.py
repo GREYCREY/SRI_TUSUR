@@ -179,7 +179,6 @@ def wait_for_input():
         next_idt_event.clear()  # готов к следующему сигналу
 
 
-
 def send_commands_thread(sock, commands, start_idt, callback):
     
     try:
@@ -297,6 +296,7 @@ def decode_packet(data):
             if kod_vozvrata == 0:
                 # Читаем текстовый параметр — это уставка
                 text_bytes = msg[16:]
+                print(text_bytes)
                 null_idx = text_bytes.find(b'\x00')
                 if null_idx != -1:
                     val = int(text_bytes[:null_idx].decode('cp1251', errors='ignore'))
