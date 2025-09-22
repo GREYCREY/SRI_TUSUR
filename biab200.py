@@ -187,7 +187,7 @@ def send_commands_thread(sock, commands, start_idt, callback):
                     ustavka_response[ust] = (ev, None)
 
                 # Отправка уставки
-                pkt = pk.Short_Comanda_KU(14, current_IDT, 1).set_ustavka(ust, 3)
+                pkt = pk.Short_Comanda_KU(4, current_IDT, 1).set_ustavka(ust, 4)
                 sock.send(pkt)
 
                 # Ожидание ответа (квитанции или ATM)
@@ -280,39 +280,33 @@ def decode_packet(data):
         timestamp, = unpack_from('<Q', msg, 2)
         packet_id, = unpack_from('<H', msg, 10)
 
-        if packet_id == 1:
-            # Квитанция об установке
-            kod_vozvrata, = unpack_from('<H', msg, 14)
-            kol, = unpack_from('<H', msg, 16)
-            print(kod_vozvrata)
-            if kod_vozvrata == 0:
-                # Читаем текстовый параметр — это уставка
-                text_bytes = msg[18:]
-                null_idx = text_bytes.find(b'\x00')
-                if null_idx != -1:
-                    val = int(text_bytes[:null_idx].decode('cp1251', errors='ignore'))
-                    with ustavka_lock:
-                        if val in ustavka_response:
-                            ev, _ = ustavka_response[val]
-                            ustavka_response[val] = (ev, val)
-                            ev.set()
-
-        else:
-            # Прочие пакеты (ATM и др.)
-            kol, = unpack_from('<H', msg, 12)
+        if packet_id == 4:
+            kol, = unpack_from('<H', msg, 12)  # количество параметров
             offset = 14
+
             for _ in range(kol):
                 type_atm, pnum, plen = unpack_from('<HHB', msg, offset)
                 offset += 5
-                if type_atm == 20 and plen == 2:
-                    raw, = unpack_from('<h', msg, offset)
-                    val = round(raw, 3)
-                    with ustavka_lock:
-                        if val in ustavka_response:
-                            ev, _ = ustavka_response[val]
-                            ustavka_response[val] = (ev, val)
-                            ev.set()
+
+                if plen > 0 and offset + plen <= len(msg):
+                    # --- Обработка уставок ИДТ ---
+                    if type_atm == 2 and plen == 2:  # Уставка сопротивления ИДТ
+                        raw_value, = unpack_from('<H', msg, offset)
+                        ustavka_value = raw_value  # храним как есть (990...1200)
+
+                        print(f"[АТМ] type={type_atm}, pnum={pnum}, value={ustavka_value}")
+
+                        with ustavka_lock:
+                            if ustavka_value in ustavka_response:
+                                ev, _ = ustavka_response[ustavka_value]
+                                ustavka_response[ustavka_value] = (ev, ustavka_value)
+                                ev.set()
+
                 offset += plen
+
+        else:
+            # Остальные пакеты игнорируем
+            print(f"[INFO] Необработанный пакет: ID={packet_id}, длина={len(msg)}")
               
 
 def listen_for_keypress(sock,commands):
@@ -352,7 +346,7 @@ def client_thread(host, port, commands, callback= None):
         stop_thread.set()
 
 if __name__ == "__main__":
-    HOST, PORT = "192.168.0.192", 10001
+    HOST, PORT = "192.168.1.235", 10001
 
     # Загрузка команд из JSON-файла
     with open('command_biab200.json', 'r', encoding='utf-8') as file:
