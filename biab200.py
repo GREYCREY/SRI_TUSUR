@@ -17,6 +17,8 @@ from datetime import datetime, timedelta
 
 # Глобальная переменная для остановки цикла
 stop_thread = threading.Event()
+# глобальная переменная для синхронизации decode_packet
+active_IDT = None
 param_value_queue = queue.Queue()
 ustavka_response = {}  # {уставка: (Event, значение)}
 ustavka_lock = threading.Lock()  # Для безопасного доступа из разных потоков
@@ -181,6 +183,7 @@ def send_commands_thread(sock, commands, start_idt, callback):
 
         # Основной цикл по IDT и уставкам
         for current_IDT in range(start_idt, 12):
+            globals()['active_IDT'] = current_IDT
             for ust in range(990, 1205, 5):
                 with ustavka_lock:
                     ev = threading.Event()
@@ -290,7 +293,7 @@ def decode_packet(data):
 
                 if plen > 0 and offset + plen <= len(msg):
                     # --- Обработка уставок ИДТ ---
-                    if type_atm == 2 and plen == 2:  # Уставка сопротивления ИДТ
+                    if type_atm == 20 and plen == 2:  # Уставка сопротивления ИДТ
                         raw_value, = unpack_from('<H', msg, offset)
                         ustavka_value = raw_value  # храним как есть (990...1200)
 
@@ -346,7 +349,7 @@ def client_thread(host, port, commands, callback= None):
         stop_thread.set()
 
 if __name__ == "__main__":
-    HOST, PORT = "192.168.1.235", 10001
+    HOST, PORT = "192.168.0.176", 10001
 
     # Загрузка команд из JSON-файла
     with open('command_biab200.json', 'r', encoding='utf-8') as file:
