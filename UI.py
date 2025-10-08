@@ -4,7 +4,7 @@ import threading
 import json
 import biab200 as logic   
 
-HOST = "192.168.0.176"
+IP_entry = "192.168.0.176"
 PORT = 10001
 
 # Загружаем команды
@@ -33,7 +33,7 @@ def start_measurement():
     # Запускаем клиент в потоке
     t = threading.Thread(
         target=logic.client_thread,
-        args=(HOST, PORT, commands, add_result_row),
+        args=(IP_entry, PORT, commands, add_result_row),
         daemon=True
     )
     t.start()
@@ -52,6 +52,8 @@ def continue_measurement():
     
 # Интерфейс
 frame = tk.Frame(root); frame.pack(pady=5)
+tk.Label(frame, text="IP:").pack(side="left")
+IP_entry = tk.Entry(frame, width=5); IP_entry.pack(side="left", padx=5)
 tk.Label(frame, text="Номер БИАБ:").pack(side="left")
 biab_entry = tk.Entry(frame, width=5); biab_entry.insert(0, "01"); biab_entry.pack(side="left", padx=5)
 tk.Label(frame, text="Начальный IDT:").pack(side="left")
