@@ -28,13 +28,17 @@ next_idt_event = threading.Event()
 start_idt = 0 
 
 
-Address, COMport_PH, COMport_calibrator, COMport_Agilent = json_open.json_address_modbus()
-try:
-    ser_a = serial.Serial(port=COMport_Agilent, baudrate=9600, bytesize=8, stopbits=2, timeout=5)
-except serial.SerialException as e:
-    print(f"Ошибка при подключении Agilent к COM порту '{COMport_Agilent}'")
-    input("Нажмите клавишу 'Enter' для выхода из консоли")
-    sys.exit()
+ser_a = None  # глобальная переменная для подключения Agilent
+
+def init_agilent_port(port_name):
+    """Инициализация Agilent по выбранному COM-порту"""
+    global ser_a
+    try:
+        ser_a = serial.Serial(port=port_name, baudrate=9600, bytesize=8, stopbits=2, timeout=5)
+    except serial.SerialException as e:
+        print(f"Ошибка при подключении Agilent к COM порту '{port_name}': {e}")
+        ser_a = None
+
 
 def settings_Agilent():
     print("-------------------------------")
@@ -329,7 +333,11 @@ def listen_for_keypress(sock,commands):
                 sock.send(command.message())
             break
 
-def client_thread(host, port, commands, callback= None):
+def client_thread(host, port, commands, callback= None, com_agilent="COM3"):
+    init_agilent_port(com_agilent)
+    if not ser_a:
+        print("Agilent не подключен — прерывание работы.")
+        return
     try:
         settings_Agilent()  # Инициализация Agilent один раз
         with socket.create_connection((host, port)) as sock:

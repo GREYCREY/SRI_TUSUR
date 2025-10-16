@@ -30,9 +30,10 @@ def start_measurement():
 
     host = HOST.get()
     # Запускаем клиент в потоке
+    com_agilent = com_entry.get().strip() or "COM3"
     t = threading.Thread(
         target=logic.client_thread,
-        args=(host, PORT, commands, add_result_row),
+        args=(host, PORT, commands, add_result_row, com_agilent),
         daemon=True
     )
     t.start()
@@ -61,19 +62,29 @@ def continue_measurement():
     
 # Интерфейс
 frame = tk.Frame(root); frame.pack(pady=5)
+
 tk.Label(frame, text="IP:").pack(side="left")
 HOST = tk.Entry(frame, width=20)
 HOST.insert(0,"192.168.0.176")
 HOST.pack(side="left", padx=5)
+
+tk.Label(frame, text="COM Agilent:").pack(side="left")
+com_entry = tk.Entry(frame, width=8)
+com_entry.insert(0, "COM3")  # значение по умолчанию
+com_entry.pack(side="left", padx=5)
+
 tk.Label(frame, text="Номер БИАБ:").pack(side="left")
 biab_entry = tk.Entry(frame, width=5); biab_entry.insert(0, "01"); biab_entry.pack(side="left", padx=5)
+
 tk.Label(frame, text="Начальный IDT:").pack(side="left")
 idt_entry = tk.Entry(frame, width=5); idt_entry.insert(0, "1"); idt_entry.pack(side="left", padx=5)
+
 tk.Button(frame, text="Старт", command=start_measurement).pack(side="left", padx=5)
 
 tk.Button(frame, text= "Продолжить ", command= continue_measurement).pack(side="left", padx=5)
 
 tk.Button(frame, text="Стоп", command=stop_measurement).pack(side="left", padx=5)
+
 tk.Button(frame, text="Очистить", command=lambda: tree.delete(*tree.get_children())).pack(side="left", padx=5)
 
 
