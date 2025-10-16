@@ -2,14 +2,13 @@ import tkinter as tk
 from tkinter import ttk
 import threading
 import json
-import biab200 as logic   
+import biab200 as logic
+import sys, os   
 
-IP_entry = "192.168.0.176"
 PORT = 10001
 
 # Загружаем команды
-with open("command_biab200.json", encoding="utf-8") as f:
-    commands = json.load(f)
+
 
 root = tk.Tk()
 root.title("Измерение БИАБ-200ЛИ")
@@ -29,11 +28,11 @@ def start_measurement():
     logic.start_idt = start_idt
     logic.stop_thread.clear()   # сброс флага остановки
 
-    
+    host = HOST.get()
     # Запускаем клиент в потоке
     t = threading.Thread(
         target=logic.client_thread,
-        args=(IP_entry, PORT, commands, add_result_row),
+        args=(host, PORT, commands, add_result_row),
         daemon=True
     )
     t.start()
@@ -43,6 +42,16 @@ def stop_measurement():
     logic.stop_thread.set()
     status_label.config(text="Остановлено")
 
+def resource_path(relative_path):
+    if hasattr(sys, '_MEIPASS'):
+        base_path = sys._MEIPASS
+    else:
+        base_path = os.path.abspath(".")
+    return os.path.join(base_path, relative_path)
+
+with open(resource_path("command_biab200.json"), encoding="utf-8") as f:
+    commands = json.load(f)
+    
 # Функция добавления строки в таблицу (вызывается из measure_biab.py)
 def add_result_row(values):
     tree.insert("", "end", values=values)
@@ -53,7 +62,9 @@ def continue_measurement():
 # Интерфейс
 frame = tk.Frame(root); frame.pack(pady=5)
 tk.Label(frame, text="IP:").pack(side="left")
-IP_entry = tk.Entry(frame, width=5); IP_entry.pack(side="left", padx=5)
+HOST = tk.Entry(frame, width=20)
+HOST.insert(0,"192.168.0.176")
+HOST.pack(side="left", padx=5)
 tk.Label(frame, text="Номер БИАБ:").pack(side="left")
 biab_entry = tk.Entry(frame, width=5); biab_entry.insert(0, "01"); biab_entry.pack(side="left", padx=5)
 tk.Label(frame, text="Начальный IDT:").pack(side="left")
