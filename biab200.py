@@ -68,7 +68,7 @@ def Agilent_value():
             return None
     except Exception as e:
         print("Ошибка при чтении данных Agilent:", e)
-        return None
+        return 0
 
 
 def komm(list_komm: dict, n_pak=2, n_param=0):
