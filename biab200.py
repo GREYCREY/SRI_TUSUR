@@ -210,6 +210,9 @@ def send_commands_thread(sock, commands, start_idt, callback):
                 # Записываем в CSV и обновляем GUI через callback
                 write_to_csv(current_IDT, ust, param, ag_val, callback)
 
+            if callback:
+                safe_callback(callback, "Переставьте щупы и нажмите «Продолжить»")
+            
             # Переход к следующему IDT
             next_idt_event.set()
             wait_for_input_event.wait()
@@ -221,20 +224,8 @@ def send_commands_thread(sock, commands, start_idt, callback):
             sock.send(pk.Short_Comanda_KU(cd['type_ku'], cd['cod_ku']).message())
             
     except Exception as e:
-        print(f"Ошибка в потоке отправки команд: {e}")
-        # Передаем информацию об ошибке через callback
         if callback:
-            error_values = (
-                "Ошибка", 
-                f"{e}", 
-                "", 
-                "", 
-                "", 
-                "Ошибка", 
-                datetime.now().strftime("%Y-%m-%d")
-            )
-            # Безопасный вызов callback в главном потоке
-            safe_callback(callback, error_values)
+            safe_callback(callback, f"Ошибка: {e}")
         
         
 
@@ -351,8 +342,9 @@ def client_thread(host, port, commands, callback= None, com_agilent="COM3"):
             send_thread.join()
             receive_thread.join()
             
-    except ConnectionError:
-        print("Ошибка подключения к серверу!")
+    except ConnectionError as e:
+        if callback:
+            safe_callback(callback, f"Ошибка подключения: {e}")
     finally:
         stop_thread.set()
 

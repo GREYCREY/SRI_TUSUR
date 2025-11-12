@@ -55,10 +55,23 @@ with open(resource_path("command_biab200.json"), encoding="utf-8") as f:
     
 # Функция добавления строки в таблицу (вызывается из measure_biab.py)
 def add_result_row(values):
-    tree.insert("", "end", values=values)
+    
+    if isinstance(values, str):
+        update_status(values)
+        return
+    
+    item_id = tree.insert("", "end", values=values)
+    tree.yview_moveto(1.0)  # прокручивает в самый низ
+    tree.see(item_id)       
 
 def continue_measurement():
     logic.wait_for_input_event.set()
+
+def update_status(text, color="black"):
+    if color is None:
+        color = "red" if "Ошибка" in text else "black"
+    status_label.config(text=text, fg=color)
+    status_label.update_idletasks()
     
 # Интерфейс
 frame = tk.Frame(root); frame.pack(pady=5)
@@ -88,7 +101,7 @@ tk.Button(frame, text="Стоп", command=stop_measurement).pack(side="left", pa
 tk.Button(frame, text="Очистить", command=lambda: tree.delete(*tree.get_children())).pack(side="left", padx=5)
 
 
-status_label = tk.Label(root, text="Готово к запуску", bg="#eee", anchor="w")
+status_label = tk.Label(root, text="", bg="#eee", anchor="w")
 status_label.pack(fill="x", pady=5)
 
 columns = ("IDT","Уставка","Знач. БИАБ","Знач. прибора","Погрешность","Статус","Дата")
