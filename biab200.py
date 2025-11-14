@@ -9,7 +9,6 @@ from os import path
 from time import sleep
 from struct import pack, unpack_from, error
 import threading
-from keyboard import is_pressed
 import packet as pk
 from datetime import datetime, timedelta
 
