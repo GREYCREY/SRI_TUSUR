@@ -1,4 +1,4 @@
-('D:\\Repository\\build\\UI\\PYZ-00.pyz',
+('D:\\Development\\Repository\\build\\UI\\PYZ-00.pyz',
  [('__future__',
    'C:\\Program '
    'Files\\WindowsApps\\PythonSoftwareFoundation.Python.3.13_3.13.2544.0_x64__qbz5n2kfra8p0\\Lib\\__future__.py',
@@ -51,7 +51,7 @@
    'C:\\Program '
    'Files\\WindowsApps\\PythonSoftwareFoundation.Python.3.13_3.13.2544.0_x64__qbz5n2kfra8p0\\Lib\\base64.py',
    'PYMODULE'),
-  ('biab200', 'D:\\Repository\\biab200.py', 'PYMODULE'),
+  ('biab200', 'D:\\Development\\Repository\\biab200.py', 'PYMODULE'),
   ('bisect',
    'C:\\Program '
    'Files\\WindowsApps\\PythonSoftwareFoundation.Python.3.13_3.13.2544.0_x64__qbz5n2kfra8p0\\Lib\\bisect.py',
@@ -328,7 +328,7 @@
    'C:\\Program '
    'Files\\WindowsApps\\PythonSoftwareFoundation.Python.3.13_3.13.2544.0_x64__qbz5n2kfra8p0\\Lib\\json\\scanner.py',
    'PYMODULE'),
-  ('json_open', 'D:\\Repository\\json_open.py', 'PYMODULE'),
+  ('json_open', 'D:\\Development\\Repository\\json_open.py', 'PYMODULE'),
   ('logging',
    'C:\\Program '
    'Files\\WindowsApps\\PythonSoftwareFoundation.Python.3.13_3.13.2544.0_x64__qbz5n2kfra8p0\\Lib\\logging\\__init__.py',
@@ -345,7 +345,7 @@
    'C:\\Program '
    'Files\\WindowsApps\\PythonSoftwareFoundation.Python.3.13_3.13.2544.0_x64__qbz5n2kfra8p0\\Lib\\opcode.py',
    'PYMODULE'),
-  ('packet', 'D:\\Repository\\packet.py', 'PYMODULE'),
+  ('packet', 'D:\\Development\\Repository\\packet.py', 'PYMODULE'),
   ('pathlib',
    'C:\\Program '
    'Files\\WindowsApps\\PythonSoftwareFoundation.Python.3.13_3.13.2544.0_x64__qbz5n2kfra8p0\\Lib\\pathlib\\__init__.py',
@@ -403,27 +403,6 @@
    'PYMODULE'),
   ('serial.serialwin32',
    'C:\\Users\\Greyc\\AppData\\Local\\Packages\\PythonSoftwareFoundation.Python.3.13_qbz5n2kfra8p0\\LocalCache\\local-packages\\Python313\\site-packages\\serial\\serialwin32.py',
-   'PYMODULE'),
-  ('serial.tools',
-   'C:\\Users\\Greyc\\AppData\\Local\\Packages\\PythonSoftwareFoundation.Python.3.13_qbz5n2kfra8p0\\LocalCache\\local-packages\\Python313\\site-packages\\serial\\tools\\__init__.py',
-   'PYMODULE'),
-  ('serial.tools.list_ports',
-   'C:\\Users\\Greyc\\AppData\\Local\\Packages\\PythonSoftwareFoundation.Python.3.13_qbz5n2kfra8p0\\LocalCache\\local-packages\\Python313\\site-packages\\serial\\tools\\list_ports.py',
-   'PYMODULE'),
-  ('serial.tools.list_ports_common',
-   'C:\\Users\\Greyc\\AppData\\Local\\Packages\\PythonSoftwareFoundation.Python.3.13_qbz5n2kfra8p0\\LocalCache\\local-packages\\Python313\\site-packages\\serial\\tools\\list_ports_common.py',
-   'PYMODULE'),
-  ('serial.tools.list_ports_linux',
-   'C:\\Users\\Greyc\\AppData\\Local\\Packages\\PythonSoftwareFoundation.Python.3.13_qbz5n2kfra8p0\\LocalCache\\local-packages\\Python313\\site-packages\\serial\\tools\\list_ports_linux.py',
-   'PYMODULE'),
-  ('serial.tools.list_ports_osx',
-   'C:\\Users\\Greyc\\AppData\\Local\\Packages\\PythonSoftwareFoundation.Python.3.13_qbz5n2kfra8p0\\LocalCache\\local-packages\\Python313\\site-packages\\serial\\tools\\list_ports_osx.py',
-   'PYMODULE'),
-  ('serial.tools.list_ports_posix',
-   'C:\\Users\\Greyc\\AppData\\Local\\Packages\\PythonSoftwareFoundation.Python.3.13_qbz5n2kfra8p0\\LocalCache\\local-packages\\Python313\\site-packages\\serial\\tools\\list_ports_posix.py',
-   'PYMODULE'),
-  ('serial.tools.list_ports_windows',
-   'C:\\Users\\Greyc\\AppData\\Local\\Packages\\PythonSoftwareFoundation.Python.3.13_qbz5n2kfra8p0\\LocalCache\\local-packages\\Python313\\site-packages\\serial\\tools\\list_ports_windows.py',
    'PYMODULE'),
   ('serial.win32',
    'C:\\Users\\Greyc\\AppData\\Local\\Packages\\PythonSoftwareFoundation.Python.3.13_qbz5n2kfra8p0\\LocalCache\\local-packages\\Python313\\site-packages\\serial\\win32.py',

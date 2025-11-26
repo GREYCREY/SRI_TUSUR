@@ -16,6 +16,7 @@ from datetime import datetime, timedelta
 
 # Глобальная переменная для остановки цикла
 stop_thread = threading.Event()
+stop_idt_cycle = threading.Event()
 # глобальная переменная для синхронизации decode_packet
 active_IDT = None
 param_value_queue = queue.Queue()
@@ -176,7 +177,7 @@ def clean_csv_for_idt(start_idt):
         
 
 
-def send_commands_thread(sock, commands, start_idt, callback):
+def send_commands_thread(sock, commands, start_idt, callback, callback_dialog):
     
     try:
         # Отправляем стартовые команды
@@ -184,10 +185,23 @@ def send_commands_thread(sock, commands, start_idt, callback):
             cd = commands['short_comm'][name]
             sock.send(pk.Short_Comanda_KU(cd['type_ku'], cd['cod_ku']).message())
 
-        # Основной цикл по IDT и уставкам
-        for current_IDT in range(start_idt, 12):
+        current_IDT = start_idt
+
+        # Основной цикл — теперь while
+        while current_IDT < 12:
+
+            # Проверка глобального флага остановки
+            if stop_idt_cycle.is_set():
+                break
+
             globals()['active_IDT'] = current_IDT
+
+            # ---- ИЗМЕРЕНИЕ ВСЕХ УСТАВОК ДЛЯ ЭТОГО IDT ----
             for ust in range(990, 1205, 5):
+
+                if stop_idt_cycle.is_set():
+                    break
+
                 with ustavka_lock:
                     ev = threading.Event()
                     ustavka_response[ust] = (ev, None)
@@ -196,7 +210,7 @@ def send_commands_thread(sock, commands, start_idt, callback):
                 pkt = pk.Short_Comanda_KU(4, current_IDT, 1).set_ustavka(ust, 4)
                 sock.send(pkt)
 
-                # Ожидание ответа (квитанции или ATM)
+                # Ждём ответа / ATM
                 if ev.wait(timeout=10):
                     _, param = ustavka_response.pop(ust)
                 else:
@@ -206,25 +220,45 @@ def send_commands_thread(sock, commands, start_idt, callback):
                 # Измерение Agilent
                 ag_val = Agilent_value()
 
-                # Записываем в CSV и обновляем GUI через callback
+                # Записываем в CSV и обновляем GUI
                 write_to_csv(current_IDT, ust, param, ag_val, callback)
 
+            # Если остановили во время измерений
+            if stop_idt_cycle.is_set():
+                break
+
+            # ---- ДИАЛОГ ПОСЛЕ IDT ----
             if callback:
-                safe_callback(callback, "Переставьте щупы и нажмите «Продолжить»")
-            
-            # Переход к следующему IDT
-            next_idt_event.set()
-            wait_for_input_event.wait()
-            wait_for_input_event.clear()    
+                safe_callback(callback, "Переставьте щупы для следующего IDT")
+
+            action = callback_dialog()  # <- вызывается модальное окно
+
+            if action == "stop":
+                stop_idt_cycle.set()
+                break
+
+            elif action == "repeat":
+                # просто начинаем while сначала, но IDT не изменяем
+                continue
+
+            elif action == "continue":
+                current_IDT += 1
+                continue
+
+            else:
+                # На всякий случай — поведение по умолчанию
+                current_IDT += 1
+                continue
 
         # Отправляем завершающие команды
         for name in ["otkl_biab", "otkl_atm_biab_kpa", "autonomous_mode"]:
             cd = commands['short_comm'][name]
             sock.send(pk.Short_Comanda_KU(cd['type_ku'], cd['cod_ku']).message())
-            
+
     except Exception as e:
         if callback:
             safe_callback(callback, f"Ошибка: {e}")
+
         
         
 
@@ -323,7 +357,8 @@ def listen_for_keypress(sock,commands):
                 sock.send(command.message())
             break
 
-def client_thread(host, port, commands, callback= None, com_agilent="COM3"):
+def client_thread(host, port, commands, callback=None, show_probe_dialog=None, com_agilent="COM3"):
+
     init_agilent_port(com_agilent)
     if not ser_a:
         print("Agilent не подключен — прерывание работы.")
@@ -331,7 +366,7 @@ def client_thread(host, port, commands, callback= None, com_agilent="COM3"):
     try:
         settings_Agilent()  # Инициализация Agilent один раз
         with socket.create_connection((host, port)) as sock:
-            send_thread = threading.Thread(target=send_commands_thread, args=(sock, commands, start_idt, callback))
+            send_thread = threading.Thread(target=send_commands_thread, args=(sock, commands, start_idt, callback, show_probe_dialog))
             receive_thread = threading.Thread(target=receive_messages, args=(sock,))
             
             

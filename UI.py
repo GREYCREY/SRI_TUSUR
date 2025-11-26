@@ -9,6 +9,37 @@ PORT = 10001
 
 # Загружаем команды
 
+def show_probe_dialog():
+    dialog = tk.Toplevel()
+    dialog.title("Перестановка щупов")
+    dialog.geometry("350x150")
+    dialog.grab_set()   # окно модальное
+
+    tk.Label(dialog, text="Переставьте щупы на следующий IDT").pack(pady=10)
+
+    result = {"action": None}
+
+    def on_repeat():
+        result["action"] = "repeat"
+        dialog.destroy()
+
+    def on_continue():
+        result["action"] = "continue"
+        dialog.destroy()
+
+    def on_stop():
+        result["action"] = "stop"
+        dialog.destroy()
+
+    btn_frame = tk.Frame(dialog)
+    btn_frame.pack(pady=10)
+
+    tk.Button(btn_frame, text="Повторить", width=10, command=on_repeat).pack(side="left", padx=5)
+    tk.Button(btn_frame, text="Продолжить", width=10, command=on_continue).pack(side="left", padx=5)
+    tk.Button(btn_frame, text="Стоп", width=10, command=on_stop).pack(side="left", padx=5)
+
+    dialog.wait_window()
+    return result["action"]
 
 root = tk.Tk()
 root.title("Измерение БИАБ-200ЛИ")
@@ -16,6 +47,7 @@ root.geometry("1000x650")
 
 # Функция старта
 def start_measurement():
+    logic.stop_idt_cycle.clear
     # читаем поля
     biab_num = biab_entry.get().strip() or "01"
     try:
@@ -33,14 +65,14 @@ def start_measurement():
     com_agilent = com_entry.get().strip() or "COM3"
     t = threading.Thread(
         target=logic.client_thread,
-        args=(host, PORT, commands, add_result_row, com_agilent),
+        args=(host, PORT, commands, add_result_row, com_agilent, show_probe_dialog),
         daemon=True
     )
     t.start()
 
 # Функция остановки
 def stop_measurement():
-    logic.stop_thread.set()
+    logic.stop_idt_cycle.set() 
     status_label.config(text="Остановлено")
 
 def resource_path(relative_path):
@@ -64,9 +96,9 @@ def add_result_row(values):
     tree.yview_moveto(1.0)  # прокручивает в самый низ
     tree.see(item_id)       
 
-def continue_measurement():
+'''def continue_measurement():
     logic.wait_for_input_event.set()
-
+'''
 def update_status(text, color="black"):
     if color is None:
         color = "red" if "Ошибка" in text else "black"
@@ -94,7 +126,7 @@ idt_entry = tk.Entry(frame, width=5); idt_entry.insert(0, "1"); idt_entry.pack(s
 
 tk.Button(frame, text="Старт", command=start_measurement).pack(side="left", padx=5)
 
-tk.Button(frame, text= "Продолжить ", command= continue_measurement).pack(side="left", padx=5)
+#tk.Button(frame, text= "Продолжить ", command= continue_measurement).pack(side="left", padx=5)
 
 tk.Button(frame, text="Стоп", command=stop_measurement).pack(side="left", padx=5)
 
