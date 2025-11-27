@@ -47,7 +47,7 @@ root.geometry("1000x650")
 
 # Функция старта
 def start_measurement():
-    logic.stop_idt_cycle.clear
+    logic.stop_idt_cycle.clear()
     # читаем поля
     biab_num = biab_entry.get().strip() or "01"
     try:
@@ -65,7 +65,7 @@ def start_measurement():
     com_agilent = com_entry.get().strip() or "COM3"
     t = threading.Thread(
         target=logic.client_thread,
-        args=(host, PORT, commands, add_result_row, com_agilent, show_probe_dialog),
+        args=(host, PORT, commands, add_result_row, show_probe_dialog, com_agilent),
         daemon=True
     )
     t.start()
