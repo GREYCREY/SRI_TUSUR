@@ -47,7 +47,16 @@ root.geometry("1000x650")
 
 # Функция старта
 def start_measurement():
+    
+    logic.stop_thread.clear()
     logic.stop_idt_cycle.clear()
+
+    logic.wait_for_input_event.clear()
+    logic.next_idt_event.clear()
+
+    logic.ustavka_response.clear()
+    logic.active_IDT = None
+
     # читаем поля
     biab_num = biab_entry.get().strip() or "01"
     try:
@@ -72,7 +81,15 @@ def start_measurement():
 
 # Функция остановки
 def stop_measurement():
-    logic.stop_idt_cycle.set() 
+    logic.stop_idt_cycle.set()
+    logic.stop_thread.set()
+
+    # Остановить приём сообщений
+    try:
+        logic.sock_forced_close()
+    except:
+        pass
+
     status_label.config(text="Остановлено")
 
 def resource_path(relative_path):

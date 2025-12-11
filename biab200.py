@@ -19,6 +19,7 @@ stop_thread = threading.Event()
 stop_idt_cycle = threading.Event()
 # глобальная переменная для синхронизации decode_packet
 active_IDT = None
+sock_ref = None
 param_value_queue = queue.Queue()
 ustavka_response = {}  # {уставка: (Event, значение)}
 ustavka_lock = threading.Lock()  # Для безопасного доступа из разных потоков
@@ -163,7 +164,7 @@ def clean_csv_for_idt(start_idt):
                 continue  # Пропускаем пустые строки
             try:
                 row_idt = int(row[0])
-                if row_idt != start_idt:
+                if row_idt == start_idt:
                     rows_to_keep.append(row)
             except (IndexError, ValueError):
                 rows_to_keep.append(row)  # Если не число — оставляем на всякий случай
@@ -270,6 +271,8 @@ def receive_messages(sock):
         try:
             # Получаем данные из сокета
             chunk = sock.recv(16384)
+            if stop_thread.is_set():
+                return
             if not chunk:
                 break  # Если данных нет, завершаем цикл
             buffer += chunk  # Добавляем полученные данные в буфер
@@ -340,47 +343,54 @@ def decode_packet(data):
             print(f"[INFO] Необработанный пакет: ID={packet_id}, длина={len(msg)}")
               
 
-def listen_for_keypress(sock,commands):
-    # Ожидание нажатия клавиши 'q'
-    while not stop_thread.is_set():
-        if is_pressed('q'):
-            
-            print("Key 'q' pressed, stopping the command cycle")
-            
-            stop_commands = ["otkl_biab", "otkl_atm_biab_kpa", "autonomous_mode"]
-            
-            for command_name in stop_commands:
-                command_details = commands['short_comm'][command_name]
-                type_ku = command_details['type_ku']
-                cod_ku = command_details['cod_ku']
-                command = pk.Short_Comanda_KU(type_ku, cod_ku)
-                sock.send(command.message())
-            break
+def sock_forced_close():
+    global sock_ref
+    if sock_ref:
+        try:
+            sock_ref.shutdown(2)
+            sock_ref.close()
+        except:
+            pass
+    sock_ref = None
+
 
 def client_thread(host, port, commands, callback=None, show_probe_dialog=None, com_agilent="COM3"):
-
+    global sock_ref
     init_agilent_port(com_agilent)
+
     if not ser_a:
         print("Agilent не подключен — прерывание работы.")
         return
+
     try:
-        settings_Agilent()  # Инициализация Agilent один раз
+        settings_Agilent()
+
+        # создаём сокет
         with socket.create_connection((host, port)) as sock:
-            send_thread = threading.Thread(target=send_commands_thread, args=(sock, commands, start_idt, callback, show_probe_dialog))
-            receive_thread = threading.Thread(target=receive_messages, args=(sock,))
-            
+            sock_ref = sock  # <-- теперь sock существует
+
+            send_thread = threading.Thread(
+                target=send_commands_thread,
+                args=(sock, commands, start_idt, callback, show_probe_dialog)
+            )
+            receive_thread = threading.Thread(
+                target=receive_messages,
+                args=(sock,)
+            )
             
             send_thread.start()
             receive_thread.start()
-            
+
             send_thread.join()
             receive_thread.join()
-            
+
     except ConnectionError as e:
         if callback:
             safe_callback(callback, f"Ошибка подключения: {e}")
+
     finally:
         stop_thread.set()
+
 
 if __name__ == "__main__":
     HOST, PORT = "192.168.0.176", 10001
