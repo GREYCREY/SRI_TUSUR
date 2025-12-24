@@ -164,7 +164,7 @@ def clean_csv_for_idt(start_idt):
                 continue  # Пропускаем пустые строки
             try:
                 row_idt = int(row[0])
-                if row_idt == start_idt:
+                if row_idt != start_idt:
                     rows_to_keep.append(row)
             except (IndexError, ValueError):
                 rows_to_keep.append(row)  # Если не число — оставляем на всякий случай
@@ -174,6 +174,15 @@ def clean_csv_for_idt(start_idt):
         writer.writerows(rows_to_keep)    
 
 
+def close_agilent_port():
+    global ser_a
+    try:
+        if ser_a and ser_a.is_open:
+            ser_a.close()
+    except Exception as e:
+        print("Ошибка при закрытии Agilent:", e)
+    finally:
+        ser_a = None
 
         
 
@@ -390,6 +399,8 @@ def client_thread(host, port, commands, callback=None, show_probe_dialog=None, c
 
     finally:
         stop_thread.set()
+        sock_forced_close()
+        close_agilent_port()
 
 
 if __name__ == "__main__":
