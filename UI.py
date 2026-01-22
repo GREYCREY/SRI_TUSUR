@@ -89,7 +89,10 @@ def stop_measurement():
         logic.sock_forced_close()
     except:
         pass
-
+    try:
+        logic.close_agilent_port()
+    except:
+        pass
     status_label.config(text="Остановлено")
 
 def resource_path(relative_path):

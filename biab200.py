@@ -187,13 +187,15 @@ def close_agilent_port():
         
 
 
-def send_commands_thread(sock, commands, start_idt, callback, callback_dialog):
+def send_commands_thread(sock, commands, callback, callback_dialog):
     
     try:
         # Отправляем стартовые команды
         for name in ["complex_mode", "vkl_atm_biab", "vkl_biab"]:
             cd = commands['short_comm'][name]
             sock.send(pk.Short_Comanda_KU(cd['type_ku'], cd['cod_ku']).message())
+
+        global start_idt
 
         current_IDT = start_idt
 
@@ -205,6 +207,8 @@ def send_commands_thread(sock, commands, start_idt, callback, callback_dialog):
                 break
 
             globals()['active_IDT'] = current_IDT
+            
+            clean_csv_for_idt(current_IDT)
 
             # ---- ИЗМЕРЕНИЕ ВСЕХ УСТАВОК ДЛЯ ЭТОГО IDT ----
             for ust in range(990, 1205, 5):
@@ -259,6 +263,7 @@ def send_commands_thread(sock, commands, start_idt, callback, callback_dialog):
                 # На всякий случай — поведение по умолчанию
                 current_IDT += 1
                 continue
+            
 
         # Отправляем завершающие команды
         for name in ["otkl_biab", "otkl_atm_biab_kpa", "autonomous_mode"]:
