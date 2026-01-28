@@ -208,7 +208,7 @@ def send_commands_thread(sock, commands, callback, callback_dialog):
 
             globals()['active_IDT'] = current_IDT
             
-            clean_csv_for_idt(current_IDT)
+            clean_csv_for_idt(current_IDT + 1)
 
             # ---- ИЗМЕРЕНИЕ ВСЕХ УСТАВОК ДЛЯ ЭТОГО IDT ----
             for ust in range(990, 1205, 5):
@@ -385,7 +385,7 @@ def client_thread(host, port, commands, callback=None, show_probe_dialog=None, c
 
             send_thread = threading.Thread(
                 target=send_commands_thread,
-                args=(sock, commands, start_idt, callback, show_probe_dialog)
+                args=(sock, commands, callback, show_probe_dialog)
             )
             receive_thread = threading.Thread(
                 target=receive_messages,

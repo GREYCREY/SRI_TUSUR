@@ -68,7 +68,6 @@ def start_measurement():
     # Устанавливаем глобальные параметры в logic
     logic.start_idt = start_idt
     logic.stop_thread.clear()   # сброс флага остановки
-    logic.clean_csv_for_idt(start_idt)
     host = HOST.get()
     # Запускаем клиент в потоке
     com_agilent = com_entry.get().strip() or "COM3"
