@@ -82,16 +82,6 @@ def start_measurement():
 def stop_measurement():
     logic.stop_idt_cycle.set()
     logic.stop_thread.set()
-
-    # Остановить приём сообщений
-    try:
-        logic.sock_forced_close()
-    except:
-        pass
-    try:
-        logic.close_agilent_port()
-    except:
-        pass
     status_label.config(text="Остановлено")
 
 def resource_path(relative_path):

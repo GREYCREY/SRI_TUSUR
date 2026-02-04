@@ -381,6 +381,7 @@ def client_thread(host, port, commands, callback=None, show_probe_dialog=None, c
 
         # создаём сокет
         with socket.create_connection((host, port)) as sock:
+            sock = socket.create_connection((host, port))
             sock_ref = sock  # <-- теперь sock существует
 
             send_thread = threading.Thread(
@@ -395,16 +396,24 @@ def client_thread(host, port, commands, callback=None, show_probe_dialog=None, c
             send_thread.start()
             receive_thread.start()
 
-            send_thread.join()
-            receive_thread.join()
-
+            while send_thread.is_alive() or receive_thread.is_alive():
+                if stop_thread.is_set():
+                    break
+                sleep(0.1)
+                
     except ConnectionError as e:
         if callback:
             safe_callback(callback, f"Ошибка подключения: {e}")
 
     finally:
-        stop_thread.set()
-        sock_forced_close()
+        try:
+            if sock:
+                sock.shutdown(socket.SHUT_RDWR)
+                sock.close()
+        except:
+            pass
+
+        sock_ref = None
         close_agilent_port()
 
 
