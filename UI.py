@@ -13,6 +13,7 @@ def show_probe_dialog():
     dialog = tk.Toplevel()
     dialog.title("Перестановка щупов")
     dialog.geometry("350x150")
+    
     dialog.grab_set()   # окно модальное
 
     tk.Label(dialog, text="Переставьте щупы на следующий IDT").pack(pady=10)
@@ -27,16 +28,12 @@ def show_probe_dialog():
         result["action"] = "continue"
         dialog.destroy()
 
-    def on_stop():
-        result["action"] = "stop"
-        dialog.destroy()
-
     btn_frame = tk.Frame(dialog)
     btn_frame.pack(pady=10)
 
     tk.Button(btn_frame, text="Повторить", width=10, command=on_repeat).pack(side="left", padx=5)
     tk.Button(btn_frame, text="Продолжить", width=10, command=on_continue).pack(side="left", padx=5)
-    tk.Button(btn_frame, text="Стоп", width=10, command=on_stop).pack(side="left", padx=5)
+    tk.Button(btn_frame, text="Стоп", width=10, command=stop_measurement).pack(side="left", padx=5)
 
     dialog.wait_window()
     return result["action"]

@@ -189,6 +189,7 @@ def close_agilent_port():
 
 def send_commands_thread(sock, commands, callback, callback_dialog):
     
+    clean_csv_for_idt(start_idt)
     try:
         # Отправляем стартовые команды
         for name in ["complex_mode", "vkl_atm_biab", "vkl_biab"]:
