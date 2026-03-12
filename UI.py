@@ -19,6 +19,10 @@ def show_probe_dialog():
     tk.Label(dialog, text="Переставьте щупы на следующий IDT").pack(pady=10)
 
     result = {"action": None}
+    
+    def on_stop():
+        result["action"] = "stop"
+        dialog.destroy()
 
     def on_repeat():
         result["action"] = "repeat"
@@ -33,7 +37,7 @@ def show_probe_dialog():
 
     tk.Button(btn_frame, text="Повторить", width=10, command=on_repeat).pack(side="left", padx=5)
     tk.Button(btn_frame, text="Продолжить", width=10, command=on_continue).pack(side="left", padx=5)
-    tk.Button(btn_frame, text="Стоп", width=10, command=stop_measurement).pack(side="left", padx=5)
+    tk.Button(btn_frame, text="Стоп", width=10, command=on_stop).pack(side="left", padx=5)
 
     dialog.wait_window()
     return result["action"]
@@ -79,13 +83,6 @@ def start_measurement():
 def stop_measurement():
     logic.stop_idt_cycle.set()
     logic.stop_thread.set()
-
-    # Остановить приём сообщений
-    try:
-        logic.sock_forced_close()
-    except:
-        pass
-
     status_label.config(text="Остановлено")
 
 def resource_path(relative_path):
