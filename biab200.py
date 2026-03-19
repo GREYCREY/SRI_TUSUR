@@ -187,7 +187,7 @@ def close_agilent_port():
         
 
 
-def send_commands_thread(sock, commands, callback, callback_dialog):
+def send_commands_thread(sock, commands, start_idt, callback, callback_dialog):
     
     clean_csv_for_idt(start_idt)
     try:
@@ -195,8 +195,6 @@ def send_commands_thread(sock, commands, callback, callback_dialog):
         for name in ["complex_mode", "vkl_atm_biab", "vkl_biab"]:
             cd = commands['short_comm'][name]
             sock.send(pk.Short_Comanda_KU(cd['type_ku'], cd['cod_ku']).message())
-
-        global start_idt
 
         current_IDT = start_idt
 
@@ -208,8 +206,6 @@ def send_commands_thread(sock, commands, callback, callback_dialog):
                 break
 
             globals()['active_IDT'] = current_IDT
-            
-            clean_csv_for_idt(current_IDT + 1)
 
             # ---- ИЗМЕРЕНИЕ ВСЕХ УСТАВОК ДЛЯ ЭТОГО IDT ----
             for ust in range(990, 1205, 5):
@@ -265,7 +261,6 @@ def send_commands_thread(sock, commands, callback, callback_dialog):
                 # На всякий случай — поведение по умолчанию
                 current_IDT += 1
                 continue
-            
 
         # Отправляем завершающие команды
         for name in ["otkl_biab", "otkl_atm_biab_kpa", "autonomous_mode"]:
@@ -384,12 +379,11 @@ def client_thread(host, port, commands, callback=None, show_probe_dialog=None, c
 
         # создаём сокет
         with socket.create_connection((host, port)) as sock:
-            sock = socket.create_connection((host, port))
             sock_ref = sock  # <-- теперь sock существует
 
             send_thread = threading.Thread(
                 target=send_commands_thread,
-                args=(sock, commands, callback, show_probe_dialog)
+                args=(sock, commands, start_idt, callback, show_probe_dialog)
             )
             receive_thread = threading.Thread(
                 target=receive_messages,
@@ -399,24 +393,16 @@ def client_thread(host, port, commands, callback=None, show_probe_dialog=None, c
             send_thread.start()
             receive_thread.start()
 
-            while send_thread.is_alive() or receive_thread.is_alive():
-                if stop_thread.is_set():
-                    break
-                sleep(0.1)
-                
+            send_thread.join()
+            receive_thread.join()
+
     except ConnectionError as e:
         if callback:
             safe_callback(callback, f"Ошибка подключения: {e}")
 
     finally:
-        try:
-            if sock:
-                sock.shutdown(socket.SHUT_RDWR)
-                sock.close()
-        except:
-            pass
-
-        sock_ref = None
+        stop_thread.set()
+        sock_forced_close()
         close_agilent_port()
 
 
