@@ -164,7 +164,7 @@ def clean_csv_for_idt(start_idt):
                 continue  # Пропускаем пустые строки
             try:
                 row_idt = int(row[0])
-                if row_idt != start_idt:
+                if row_idt != start_idt + 1:
                     rows_to_keep.append(row)
             except (IndexError, ValueError):
                 rows_to_keep.append(row)  # Если не число — оставляем на всякий случай
@@ -254,6 +254,7 @@ def send_commands_thread(sock, commands, callback, callback_dialog):
 
             elif action == "repeat":
                 # просто начинаем while сначала, но IDT не изменяем
+                clean_csv_for_idt(current_IDT)
                 continue
 
             elif action == "continue":
@@ -360,13 +361,14 @@ def decode_packet(data):
 
 def sock_forced_close():
     global sock_ref
-    if sock_ref:
+    s = sock_ref
+    sock_ref = None  # сначала обнуляем
+    if s:
         try:
-            sock_ref.shutdown(2)
-            sock_ref.close()
+            s.shutdown(2)
+            s.close()
         except:
             pass
-    sock_ref = None
 
 
 def client_thread(host, port, commands, callback=None, show_probe_dialog=None, com_agilent="COM3"):
