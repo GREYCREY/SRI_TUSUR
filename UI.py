@@ -15,6 +15,11 @@ def show_probe_dialog():
     dialog.geometry("350x150")
     
     dialog.grab_set()   # окно модальное
+    root.update_idletasks()
+    #Выравнивание модального окна относитльно центра главного
+    x = root.winfo_x() + (root.winfo_width() // 2) - (350 // 2)
+    y = root.winfo_y() + (root.winfo_height() // 2) - (150 // 2)
+    dialog.geometry(f"350x150+{x}+{y}")
 
     tk.Label(dialog, text="Переставьте щупы на следующий IDT").pack(pady=10)
 
@@ -22,6 +27,9 @@ def show_probe_dialog():
     
     def on_stop():
         result["action"] = "stop"
+        logic.stop_idt_cycle.set()  # выставляем флаги как в главном окне
+        logic.stop_thread.set()
+        update_status("Остановлено")
         dialog.destroy()
 
     def on_repeat():
@@ -58,6 +66,9 @@ def start_measurement():
     logic.ustavka_response.clear()
     logic.active_IDT = None
 
+    btn_start.config(state="disabled")
+    btn_stop.config(state="normal")
+    
     # читаем поля
     biab_num = biab_entry.get().strip() or "01"
     try:
@@ -83,7 +94,10 @@ def start_measurement():
 def stop_measurement():
     logic.stop_idt_cycle.set()
     logic.stop_thread.set()
+    btn_start.config(state="disabled")
+    btn_stop.config(state="disabled")
     status_label.config(text="Остановлено")
+    root.after(3000, lambda: btn_start.config(state="normal"))
 
 def resource_path(relative_path):
     if hasattr(sys, '_MEIPASS'):
@@ -134,11 +148,9 @@ biab_entry = tk.Entry(frame, width=5); biab_entry.insert(0, "01"); biab_entry.pa
 tk.Label(frame, text="Начальный IDT:").pack(side="left")
 idt_entry = tk.Entry(frame, width=5); idt_entry.insert(0, "1"); idt_entry.pack(side="left", padx=5)
 
-tk.Button(frame, text="Старт", command=start_measurement).pack(side="left", padx=5)
+btn_start = tk.Button(frame, text="Старт", command=start_measurement).pack(side="left", padx=5)
 
-#tk.Button(frame, text= "Продолжить ", command= continue_measurement).pack(side="left", padx=5)
-
-tk.Button(frame, text="Стоп", command=stop_measurement).pack(side="left", padx=5)
+btn_stop = tk.Button(frame, text="Стоп", command=stop_measurement).pack(side="left", padx=5)
 
 tk.Button(frame, text="Очистить", command=lambda: tree.delete(*tree.get_children())).pack(side="left", padx=5)
 
