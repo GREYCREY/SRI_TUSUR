@@ -30,6 +30,7 @@ def show_probe_dialog():
         logic.stop_idt_cycle.set()  # выставляем флаги как в главном окне
         logic.stop_thread.set()
         update_status("Остановлено")
+        root.after(3000, lambda: btn_start.config(state="normal"))
         dialog.destroy()
 
     def on_repeat():
@@ -148,11 +149,14 @@ biab_entry = tk.Entry(frame, width=5); biab_entry.insert(0, "01"); biab_entry.pa
 tk.Label(frame, text="Начальный IDT:").pack(side="left")
 idt_entry = tk.Entry(frame, width=5); idt_entry.insert(0, "1"); idt_entry.pack(side="left", padx=5)
 
-btn_start = tk.Button(frame, text="Старт", command=start_measurement).pack(side="left", padx=5)
+btn_start = tk.Button(frame, text="Старт", command=start_measurement)
+btn_start.pack(side="left", padx=5)
 
-btn_stop = tk.Button(frame, text="Стоп", command=stop_measurement).pack(side="left", padx=5)
+btn_stop = tk.Button(frame, text="Стоп", command=stop_measurement)
+btn_stop.pack(side="left", padx=5)
 
-tk.Button(frame, text="Очистить", command=lambda: tree.delete(*tree.get_children())).pack(side="left", padx=5)
+btn_clear = tk.Button(frame, text="Очистить", command=lambda: tree.delete(*tree.get_children()))
+btn_clear.pack(side="left", padx=5)
 
 
 status_label = tk.Label(root, text="", bg="#eee", anchor="w")
