@@ -26,7 +26,9 @@ ustavka_lock = threading.Lock()  # Для безопасного доступа 
 wait_for_input_event = threading.Event()
 agilent_lock = threading.Lock()  # Блокировка для синхронизации доступа к Agilent
 next_idt_event = threading.Event()
-start_idt = 0 
+start_idt = 0
+ustavka_change_idt = 5
+ 
 
 
 ser_a = None  # глобальная переменная для подключения Agilent
@@ -208,7 +210,7 @@ def send_commands_thread(sock, commands, start_idt, callback, callback_dialog):
             globals()['active_IDT'] = current_IDT
 
             # ---- ИЗМЕРЕНИЕ ВСЕХ УСТАВОК ДЛЯ ЭТОГО IDT ----
-            for ust in range(990, 1205, 5):
+            for ust in range(990, 1200 + ustavka_change_idt, ustavka_change_idt):
 
                 if stop_idt_cycle.is_set():
                     break
