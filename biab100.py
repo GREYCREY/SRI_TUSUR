@@ -199,7 +199,7 @@ def send_commands_thread(sock, commands, start_idt, callback, callback_dialog):
         current_IDT = start_idt
 
         # Основной цикл — теперь while
-        while current_IDT < 12:
+        while current_IDT < 11:
 
             # Проверка глобального флага остановки
             if stop_idt_cycle.is_set():
@@ -208,7 +208,7 @@ def send_commands_thread(sock, commands, start_idt, callback, callback_dialog):
             globals()['active_IDT'] = current_IDT
 
             # ---- ИЗМЕРЕНИЕ ВСЕХ УСТАВОК ДЛЯ ЭТОГО IDT ----
-            for ust in range(990, 1205, 5):
+            for ust in range(990, 1201, 1):
 
                 if stop_idt_cycle.is_set():
                     break
@@ -218,7 +218,7 @@ def send_commands_thread(sock, commands, start_idt, callback, callback_dialog):
                     ustavka_response[ust] = (ev, None)
 
                 # Отправка уставки
-                pkt = pk.Short_Comanda_KU(4, current_IDT, 1).set_ustavka(ust, 4)
+                pkt = pk.Short_Comanda_KU(4, current_IDT, 1).set_ustavka(ust, 3)
                 sock.send(pkt)
 
                 # Ждём ответа / ATM
@@ -325,7 +325,7 @@ def decode_packet(data):
         timestamp, = unpack_from('<Q', msg, 2)
         packet_id, = unpack_from('<H', msg, 10)
 
-        if packet_id == 4:
+        if packet_id == 2:
             kol, = unpack_from('<H', msg, 12)  # количество параметров
             offset = 14
 
@@ -410,7 +410,7 @@ if __name__ == "__main__":
     HOST, PORT = "192.168.0.176", 10001
 
     # Загрузка команд из JSON-файла
-    with open('command_biab200.json', 'r', encoding='utf-8') as file:
+    with open('command_biab100.json', 'r', encoding='utf-8') as file:
         commands = json.load(file)
     param_value_queue = queue.Queue()
     

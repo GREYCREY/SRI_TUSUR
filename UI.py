@@ -2,7 +2,7 @@ import tkinter as tk
 from tkinter import ttk
 import threading
 import json
-import biab200 as logic
+import biab100 as logic
 import sys, os   
 
 PORT = 10001
