@@ -22,18 +22,19 @@ def mess(data, t_time):
 
 def send_commands_thread(sock, commands):
     global stop_thread  # Используем глобальную переменную для контроля
-    ku_complex = pk.Short_Comanda_KU(1, 998)
+    ku_complex = pk.Short_Comanda_KU(8,1 )
     ku_vkl_atm_biab = pk.Short_Comanda_KU(1, 1000)
     ku_vkl_biab = pk.Short_Comanda_KU(1, 286)
     command_for_cycle = ["nabros", "sbros"]
-
+    set_ust = pk.Short_Comanda_KU(4, 0, 1).set_ustavka(990, 3)
     # Отправка начальных команд
     sock.send(ku_complex.message())
-    sock.send(ku_vkl_atm_biab.message())
-    sock.send(ku_vkl_biab.message())
+    sock.send(set_ust)
+    '''sock.send(ku_vkl_atm_biab.message())
+    sock.send(ku_vkl_biab.message())'''
 
     # Бесконечный цикл отправки команд
-    while not stop_thread:
+    '''while not stop_thread:
         for command_name in command_for_cycle:
             if stop_thread:
                 print("Stopping the command cycle")
@@ -44,7 +45,7 @@ def send_commands_thread(sock, commands):
             command = pk.Short_Comanda_KU(type_ku, cod_ku)
             sock.send(command.message())
             sleep(3)
-
+    '''
 def receive_messages(sock):
     '''Получение и расшифровка сообщений с сервера'''
     global stop_thread
@@ -223,7 +224,7 @@ def client_thread(host, port, commands):
 
 
 if __name__ == "__main__":
-    HOST, PORT = "192.168.1.231", 10001
+    HOST, PORT = "192.168.0.60", 10001
 
     # Загрузка команд из JSON-файла
     with open('command_biab100.json', 'r') as file:
