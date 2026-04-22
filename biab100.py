@@ -325,7 +325,7 @@ def decode_packet(data):
         timestamp, = unpack_from('<Q', msg, 2)
         packet_id, = unpack_from('<H', msg, 10)
 
-        if packet_id == 2:
+        if packet_id == 4:
             kol, = unpack_from('<H', msg, 12)  # количество параметров
             offset = 14
 
@@ -335,7 +335,7 @@ def decode_packet(data):
 
                 if plen > 0 and offset + plen <= len(msg):
                     # --- Обработка уставок ИДТ ---
-                    if type_atm == 20 and plen == 2:  # Уставка сопротивления ИДТ
+                    if type_atm == 10 and plen == 2:  # Уставка сопротивления ИДТ
                         raw_value, = unpack_from('<H', msg, offset)
                         ustavka_value = raw_value  # храним как есть (990...1200)
 
@@ -348,7 +348,6 @@ def decode_packet(data):
                                 ev.set()
 
                 offset += plen
-
         else:
             # Остальные пакеты игнорируем
             print(f"[INFO] Необработанный пакет: ID={packet_id}, длина={len(msg)}")
@@ -407,7 +406,7 @@ def client_thread(host, port, commands, callback=None, show_probe_dialog=None, c
 
 
 if __name__ == "__main__":
-    HOST, PORT = "192.168.0.176", 10001
+    HOST, PORT = "192.168.0.60", 10001
 
     # Загрузка команд из JSON-файла
     with open('command_biab100.json', 'r', encoding='utf-8') as file:

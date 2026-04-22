@@ -1,20 +1,20 @@
 {
     "short_comm": {
         "complex_mode": {
-            "type_ku": 1,
-            "cod_ku": 998
+            "type_ku": 8,
+            "cod_ku": 1
         },
         "autonomous_mode": {
-            "type_ku": 1,
-            "cod_ku": 999
+            "type_ku": 8,
+            "cod_ku": 0
         },
         "vkl_atm_biab": {
-            "type_ku": 1,
-            "cod_ku": 1000
+            "type_ku": 9,
+            "cod_ku": 1
         },
         "otkl_atm_biab_kpa": {
-            "type_ku": 1,
-            "cod_ku": 1001
+            "type_ku": 9,
+            "cod_ku": 0
         },
         "test": {
             "type_ku": 1,
@@ -29,8 +29,8 @@
             "cod_ku": 318
         },
         "vkl_biab": {
-            "type_ku": 1,
-            "cod_ku": 286
+            "type_ku": 7,
+            "cod_ku": 1
         },
         "vkl_30v": {
             "type_ku": 1,
