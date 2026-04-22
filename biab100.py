@@ -218,7 +218,7 @@ def send_commands_thread(sock, commands, start_idt, callback, callback_dialog):
                     ustavka_response[ust] = (ev, None)
 
                 # Отправка уставки
-                pkt = pk.Short_Comanda_KU(4, current_IDT, 1).set_ustavka(ust, 3)
+                pkt = pk.Short_Comanda_KU(14, current_IDT, 1).set_ustavka(ust, 3)
                 sock.send(pkt)
 
                 # Ждём ответа / ATM
