@@ -23,12 +23,12 @@ def mess(data, t_time):
 def send_commands_thread(sock, commands):
     global stop_thread  # Используем глобальную переменную для контроля
     ku_complex = pk.Short_Comanda_KU(8,1 )
-    ku_vkl_atm_biab = pk.Short_Comanda_KU(1, 1000)
-    ku_vkl_biab = pk.Short_Comanda_KU(1, 286)
+    ku_vkl_atm_biab = pk.Short_Comanda_KU(9, 1)
     command_for_cycle = ["nabros", "sbros"]
-    set_ust = pk.Short_Comanda_KU(4, 0, 1).set_ustavka(990, 3)
+    set_ust = (pk.Short_Comanda_KU(4, 3, 1)).set_ustavka(20, 1)
     # Отправка начальных команд
     sock.send(ku_complex.message())
+    sock.send(ku_vkl_atm_biab.message())
     sock.send(set_ust)
     '''sock.send(ku_vkl_atm_biab.message())
     sock.send(ku_vkl_biab.message())'''
