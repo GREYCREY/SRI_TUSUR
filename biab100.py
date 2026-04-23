@@ -26,7 +26,8 @@ ustavka_lock = threading.Lock()  # Для безопасного доступа 
 wait_for_input_event = threading.Event()
 agilent_lock = threading.Lock()  # Блокировка для синхронизации доступа к Agilent
 next_idt_event = threading.Event()
-start_idt = 0 
+start_idt = 0
+ustavka_change_idt = 1
 
 
 ser_a = None  # глобальная переменная для подключения Agilent
@@ -113,7 +114,9 @@ def write_to_csv(current_IDT, current_ustavka_IDT, param_value, agilent_value, c
     """
     Запись результатов с возможностью callback в GUI
     """
-    fault = abs((current_ustavka_IDT/10) - agilent_value) if agilent_value is not None else 0
+    real_ust = 99 + 0.1 * current_ustavka_IDT
+    real_param_value = 99 + 0.1 * param_value
+    fault = abs((real_ust ) - agilent_value) if agilent_value is not None else 0
     status = '' if fault <= 0.1 else 'Не норма'
     
     # Запись в CSV файл
@@ -121,12 +124,13 @@ def write_to_csv(current_IDT, current_ustavka_IDT, param_value, agilent_value, c
     file_number = "01"
     file_name = f"{get_current_date_str()}{file_lable}_{file_number}.csv"
     
+    
     with open(file_name, mode='a', newline='', encoding='utf-8') as file:
         writer = csv.writer(file)
         writer.writerow([
             current_IDT + 1, 
-            current_ustavka_IDT / 10,
-            param_value / 10 if param_value is not None else None,
+            real_ust,
+            real_param_value if param_value is not None else None,
             round(agilent_value, 3),
             round(fault, 3),
             status,
@@ -137,8 +141,8 @@ def write_to_csv(current_IDT, current_ustavka_IDT, param_value, agilent_value, c
     if callback:
         gui_values = (
             current_IDT + 1,
-            current_ustavka_IDT / 10,
-            param_value / 10 if param_value is not None else None,
+            real_ust,
+            real_param_value if param_value is not None else None,
             round(agilent_value, 3),
             round(fault, 3),
             status,
@@ -199,7 +203,7 @@ def send_commands_thread(sock, commands, start_idt, callback, callback_dialog):
         current_IDT = start_idt
 
         # Основной цикл — теперь while
-        while current_IDT < 11:
+        while current_IDT < 10:
 
             # Проверка глобального флага остановки
             if stop_idt_cycle.is_set():
@@ -208,7 +212,8 @@ def send_commands_thread(sock, commands, start_idt, callback, callback_dialog):
             globals()['active_IDT'] = current_IDT
 
             # ---- ИЗМЕРЕНИЕ ВСЕХ УСТАВОК ДЛЯ ЭТОГО IDT ----
-            for ust in range(990, 1201, 1):
+            step = int(ustavka_change_idt)
+            for ust in range(0, 210 + step, step):
 
                 if stop_idt_cycle.is_set():
                     break
@@ -218,8 +223,9 @@ def send_commands_thread(sock, commands, start_idt, callback, callback_dialog):
                     ustavka_response[ust] = (ev, None)
 
                 # Отправка уставки
-                pkt = pk.Short_Comanda_KU(14, current_IDT, 1).set_ustavka(ust, 3)
+                pkt = pk.Short_Comanda_KU(4, current_IDT, 1).set_ustavka(ust, 1)
                 sock.send(pkt)
+                print("Уставка отправлена")
 
                 # Ждём ответа / ATM
                 if ev.wait(timeout=10):
@@ -335,7 +341,7 @@ def decode_packet(data):
 
                 if plen > 0 and offset + plen <= len(msg):
                     # --- Обработка уставок ИДТ ---
-                    if type_atm == 10 and plen == 2:  # Уставка сопротивления ИДТ
+                    if type_atm == 2 and plen == 2:  # Уставка сопротивления ИДТ
                         raw_value, = unpack_from('<H', msg, offset)
                         ustavka_value = raw_value  # храним как есть (990...1200)
 

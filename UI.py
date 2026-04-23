@@ -77,9 +77,17 @@ def start_measurement():
     except ValueError:
         start_idt = 0
 
-    status_label.config(text=f"Запуск: БИАБ {biab_num}, IDT {start_idt+1}…")
-    # Устанавливаем глобальные параметры в logic
+    try:
+        ustavka_change = int(ustavka_change_entry.get())
+    except ValueError:
+        ustavka_change = 1
+
     logic.start_idt = start_idt
+    logic.ustavka_change_idt = ustavka_change
+
+    status_label.config(text=f"Запуск: БИАБ {biab_num}, IDT {start_idt+1}, УСТАВКА {ustavka_change}…")
+    # Устанавливаем глобальные параметры в logic
+    
     logic.stop_thread.clear()   # сброс флага остановки
     host = HOST.get()
     # Запускаем клиент в потоке
@@ -107,7 +115,7 @@ def resource_path(relative_path):
         base_path = os.path.abspath(".")
     return os.path.join(base_path, relative_path)
 
-with open(resource_path("command_biab200.json"), encoding="utf-8") as f:
+with open(resource_path("command_biab100.json"), encoding="utf-8") as f:
     commands = json.load(f)
     
 # Функция добавления строки в таблицу (вызывается из measure_biab.py)
@@ -135,7 +143,7 @@ frame = tk.Frame(root); frame.pack(pady=5)
 
 tk.Label(frame, text="IP:").pack(side="left")
 HOST = tk.Entry(frame, width=20)
-HOST.insert(0,"192.168.0.176")
+HOST.insert(0,"192.168.0.60")
 HOST.pack(side="left", padx=5)
 
 tk.Label(frame, text="COM Agilent:").pack(side="left")
@@ -148,6 +156,9 @@ biab_entry = tk.Entry(frame, width=5); biab_entry.insert(0, "01"); biab_entry.pa
 
 tk.Label(frame, text="Начальный IDT:").pack(side="left")
 idt_entry = tk.Entry(frame, width=5); idt_entry.insert(0, "1"); idt_entry.pack(side="left", padx=5)
+
+tk.Label(frame, text="Шаг изм. уставки:").pack(side="left")
+ustavka_change_entry = tk.Entry(frame, width=5); ustavka_change_entry.insert(0, "1"); ustavka_change_entry.pack(side="left", padx=5)
 
 btn_start = tk.Button(frame, text="Старт", command=start_measurement)
 btn_start.pack(side="left", padx=5)
