@@ -5,7 +5,6 @@ import json
 import biab100 as logic
 import sys, os   
 
-PORT = 10001
 
 # Загружаем команды
 
@@ -90,11 +89,12 @@ def start_measurement():
     
     logic.stop_thread.clear()   # сброс флага остановки
     host = HOST.get()
+    port = PORT.get()
     # Запускаем клиент в потоке
     com_agilent = com_entry.get().strip() or "COM3"
     t = threading.Thread(
         target=logic.client_thread,
-        args=(host, PORT, commands, add_result_row, show_probe_dialog, com_agilent),
+        args=(host, port, commands, add_result_row, show_probe_dialog, com_agilent),
         daemon=True
     )
     t.start()
@@ -145,6 +145,11 @@ tk.Label(frame, text="IP:").pack(side="left")
 HOST = tk.Entry(frame, width=20)
 HOST.insert(0,"192.168.0.60")
 HOST.pack(side="left", padx=5)
+
+tk.Label(frame, text="PORT:").pack(side="left")
+PORT = tk.Entry(frame, width=5)
+PORT.insert(0, 10001)
+PORT.pack(side="left", padx=5)
 
 tk.Label(frame, text="COM Agilent:").pack(side="left")
 com_entry = tk.Entry(frame, width=8)
