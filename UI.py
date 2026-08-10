@@ -72,6 +72,10 @@ def start_measurement():
     # читаем поля
     biab_num = biab_entry.get().strip() or "01"
     try:
+        biab_num = biab_entry.get().strip()
+    except ValueError:
+        biab_num = "01"
+    try:
         start_idt = int(idt_entry.get()) - 1
     except ValueError:
         start_idt = 0
@@ -81,6 +85,7 @@ def start_measurement():
     except ValueError:
         ustavka_change = 1
 
+    logic.biab_number = biab_num
     logic.start_idt = start_idt
     logic.ustavka_change_idt = ustavka_change
 

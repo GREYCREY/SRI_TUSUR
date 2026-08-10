@@ -26,6 +26,7 @@ ustavka_lock = threading.Lock()  # Для безопасного доступа 
 wait_for_input_event = threading.Event()
 agilent_lock = threading.Lock()  # Блокировка для синхронизации доступа к Agilent
 next_idt_event = threading.Event()
+biab_number = "01"
 start_idt = 0
 ustavka_change_idt = 1
 
@@ -121,7 +122,7 @@ def write_to_csv(current_IDT, current_ustavka_IDT, param_value, agilent_value, c
     
     # Запись в CSV файл
     file_lable = "БИАБ-200ЛИ"
-    file_number = "01"
+    file_number = biab_number
     file_name = f"{get_current_date_str()}{file_lable}_{file_number}.csv"
     
     
