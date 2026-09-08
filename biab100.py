@@ -197,7 +197,7 @@ def send_commands_thread(sock, commands, start_idt, callback, callback_dialog):
     clean_csv_for_idt(start_idt)
     try:
         # Отправляем стартовые команды
-        for name in ["complex_mode", "vkl_atm_biab", "vkl_biab"]:
+        for name in ["complex_mode", "vkl_atm_biab"]:
             cd = commands['short_comm'][name]
             sock.send(pk.Short_Comanda_KU(cd['type_ku'], cd['cod_ku']).message())
 

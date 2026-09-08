@@ -5,7 +5,8 @@ import json
 import biab100 as logic
 import sys, os   
 
-
+METER_AGILENT  = "agilent"
+METER_GDM79061 = "gdm79061"
 # Загружаем команды
 
 def show_probe_dialog():
@@ -169,6 +170,13 @@ idt_entry = tk.Entry(frame, width=5); idt_entry.insert(0, "1"); idt_entry.pack(s
 
 tk.Label(frame, text="Шаг изм. уставки:").pack(side="left")
 ustavka_change_entry = tk.Entry(frame, width=5); ustavka_change_entry.insert(0, "1"); ustavka_change_entry.pack(side="left", padx=5)
+
+tk.Label(frame, text="Прибор:").pack(side="left")
+meter_var = tk.StringVar(value=METER_GDM79061)
+meter_combo = ttk.Combobox(frame, textvariable=meter_var,
+                            values=[METER_GDM79061, METER_AGILENT],
+                            width=10, state="readonly")
+meter_combo.pack(side="left", padx=4)
 
 btn_start = tk.Button(frame, text="Старт", command=start_measurement)
 btn_start.pack(side="left", padx=5)
